@@ -15,6 +15,20 @@ module.exports = {
       const body = req.body;
       let UserId = req.headers.USERID;
 
+       // Check if a lead with the same mobile number already exists
+       const existingLeadQuery =
+       "SELECT LeadId FROM `Lead` WHERE MobileNumber = ?";
+     const existingLeads = await query(existingLeadQuery, [body.MobileNumber]);
+
+     if (existingLeads.length > 0) {
+       return res.status(500).json({
+         SUCCESS: false,
+         MESSAGE: "Lead Already Exist",
+         DATA: {},
+       });
+     }
+
+
       const leadData = {
         LeadName: body.LeadName || null,
         MobileNumber: body.MobileNumber || null,
@@ -172,6 +186,18 @@ module.exports = {
       cm.City_Name,
       stm.State_Id,
       stm.State_Name
+      stm.State_Name,
+      (
+        select
+          sum(qam.Cost)
+        from
+          QuestionResponseInput as qri
+          left join QuestionResponseMapping as qam on qam.ResponseId = qri.SelectedResponseId
+        where
+          qri.VehicleProfileId = l.Vehicle_Profile
+        group by
+          qri.VehicleProfileId
+      ) as COST
     from
       \`Lead\` l
       join LeadSource_Master lsm on l.LeadSourceId = lsm.LeadSourceId
@@ -410,6 +436,10 @@ module.exports = {
         vm.Model_Name,
         vm.Variant,
         l.MfgYr,
+        CASE
+          WHEN pd.Paid_Amount = l.BookedAmount AND pd.Created_On = l.UpdatedOn THEN l.      BookedAmount
+          ELSE pd.Paid_Amount + l.BookedAmount
+          END AS Paid_Amount,
         l.inspectionDate,
         l.Course_Id,
         l.learningInstitute_status,
@@ -460,7 +490,10 @@ module.exports = {
         ) AS outgoing_calls,
         l.Destination,
         l.Medium,
-        l.Campaign
+        l.Campaign,
+        l.learningInstitute_option,
+        l.classExtenion_option,
+        l.openDemat_option
     FROM
         \`Lead\` l
     JOIN LeadSource_Master lsm ON l.LeadSourceId = lsm.LeadSourceId
@@ -595,7 +628,10 @@ module.exports = {
         ) AS outgoing_calls,
         l.Destination,
         l.Medium,
-        l.Campaign
+        l.Campaign,
+        l.learningInstitute_option,
+        l.classExtenion_option,
+        l.openDemat_option
     FROM
         \`Lead\` l
     JOIN LeadSource_Master lsm ON l.LeadSourceId = lsm.LeadSourceId
@@ -661,10 +697,10 @@ GROUP BY
       if (req.body.data) {
         const TotalLeadsData = await query(TotalLedaInfo, queryParams);
         let searchResult = [];
-        let search = req.body.data;
+        let search = req.body.data.toLowerCase();
         for (let i of TotalLeadsData) {
           if (
-            (i.hasOwnProperty("LeadName") && i["LeadName"].includes(search)) ||
+            (i.hasOwnProperty("LeadName") && i["LeadName"].toLowerCase().includes(search)) ||
             (i.hasOwnProperty("MobileNumber") &&
               i["MobileNumber"].includes(search)) ||
             (i.hasOwnProperty("WhatsAppNo") &&

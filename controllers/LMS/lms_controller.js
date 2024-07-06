@@ -852,7 +852,9 @@ module.exports = {
    */
   leadSourceDropdown: async (req, res) => {
     try {
-      let results = await query("SELECT * FROM `LeadSource_Master`");
+      let results = await query(
+        "SELECT * FROM `LeadSource_Master` WHERE Active =1"
+      );
       if (!results) {
         return success(res, "No data Found", []);
       }
@@ -1504,7 +1506,7 @@ module.exports = {
         SUM(CASE WHEN cl.CallType = 111 THEN cl.CallDuration ELSE 0 END) AS outgoing_call_duration
         FROM Call_Logs cl
         JOIN \`Lead\` l ON cl.LeadId= l.LeadId
-        WHERE l.CreatedBy = ? AND cl.CreatedAt BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)`,
+        WHERE l.CreatedBy = ? AND cl.StartTime BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)`,
         [userId, start_date, end_date]
       );
       console.log(rows);
@@ -1517,7 +1519,7 @@ module.exports = {
           SUM(CASE WHEN l.LeadStatus IN (15,25,26,27,30,37,44,107) THEN 1 ELSE 0 END) AS closed_leads,
           SUM(CASE WHEN l.LeadStatus = 16 THEN 1 ELSE 0 END) AS reEnquired_leads
         FROM \`Lead\` l 
-        WHERE l.CreatedBy = ? AND l.CreatedOn BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)`,
+        WHERE l.AssignedTo = ? AND l.UpdatedOn BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)`,
         [userId, start_date, end_date]
       );
 
@@ -1598,13 +1600,200 @@ module.exports = {
    */
   leadTypeDropDown: async function (req, res) {
     try {
-      const data = await query(
-        `SELECT tm.TypeMasterId,tm.TypeName,tm.CategoryType,tm.TypeDescription,tm.Sequence FROM Type_Master as tm WHERE tm.CategoryType="LEAD" and tm.IsActive=1`
-      );
-      if (data.length === 0)
+      const data = await query(`
+            SELECT 
+                tm.TypeMasterId,
+                tm.TypeName,
+                tm.CategoryType,
+                tm.TypeDescription,
+                tm.Sequence,
+                GROUP_CONCAT(ucm.UserId) AS UserId,  
+                GROUP_CONCAT(u.UserName) AS UserName  
+            FROM 
+                Type_Master AS tm
+            LEFT JOIN UserCenterMapping ucm ON ucm.CenterId = tm.TypeMasterId 
+            LEFT JOIN \`User\` u ON u.UserId = ucm.UserId  
+            WHERE 
+                tm.CategoryType = "LEAD" 
+                AND tm.IsActive = 1
+            GROUP BY 
+                tm.TypeMasterId, tm.TypeName, tm.CategoryType, tm.TypeDescription, tm.Sequence
+        `);
+
+      if (data.length === 0) {
         return success(res, "No data found for this request", []);
-      return success(res, "Data fetched successfully", data);
+      }
+
+      // Convert UserIds and UserNames to arrays and create userNameList
+      let userNameList = [];
+      let userIdList = [];
+      const formattedData = data.map((item) => {
+        const userIds = item.UserId
+          ? item.UserId.split(",").map((id) => parseInt(id, 10))
+          : [];
+        const userNames = item.UserName ? item.UserName.split(",") : [];
+
+        // Add the userNames to the userNameList array
+        userNameList = userNameList.concat(userNames);
+        userIdList = userIdList.concat(userIds);
+
+        return {
+          TypeMasterId: item.TypeMasterId,
+          TypeName: item.TypeName,
+          CategoryType: item.CategoryType,
+          TypeDescription: item.TypeDescription,
+          Sequence: item.Sequence,
+          // UserId: userIds,
+          // UserName: userNames
+        };
+      });
+
+      userNameList = [...new Set(userNameList)];
+      userIdList = [...new Set(userIdList)];
+
+      const response = {
+        data: formattedData,
+        userNameList: userNameList,
+        userIdList: userIdList,
+      };
+
+      return success(res, "Data fetched successfully", response);
     } catch (error) {
+      return failure(res, "Error while processing the request", error.message);
+    }
+  },
+  leadTypeDropDown2: async function (req, res) {
+    try {
+      let userCenterMappingData = [];
+
+      const { centerId } = req.body;
+
+      if (centerId !== null && centerId !== undefined) {
+        userCenterMappingData = await query(
+          `
+                SELECT 
+                    uc.CenterId,
+                    uc.UserId,
+                    u.UserName
+                FROM 
+                    UserCenterMapping uc
+                    LEFT JOIN User u ON uc.UserId = u.UserId
+                WHERE 
+                    uc.CenterId = ?
+            `,
+          [centerId]
+        );
+      } else {
+        // Query to get all UserIds and UserNames
+        userCenterMappingData = await query(`
+                SELECT 
+                    uc.CenterId,
+                    uc.UserId,
+                    u.UserName
+                FROM 
+                    UserCenterMapping uc
+                    LEFT JOIN User u ON uc.UserId = u.UserId
+            `);
+      }
+
+      if (userCenterMappingData.length === 0) {
+        return success(res, "No data found for this request", []);
+      }
+
+      // Extract all UserIds and UserNames
+      const userIds = userCenterMappingData.map((item) => item.UserId);
+      const userNames = userCenterMappingData.map((item) => item.UserName);
+
+      let responseData = {
+        UserIds: userIds,
+        UserNames: userNames,
+      };
+
+      if (centerId !== null && centerId !== undefined) {
+        // Query to get the TypeName based on the centerId
+        const typeMasterData = await query(
+          `
+                SELECT 
+                    tm.TypeMasterId,
+                    tm.TypeName,
+                    tm.CategoryType,
+                    tm.TypeDescription,
+                    tm.Sequence
+                FROM 
+                    Type_Master tm
+                WHERE 
+                    tm.TypeMasterId = ?
+                    AND tm.CategoryType = "LEAD"
+                    AND tm.IsActive = 1
+            `,
+          [centerId]
+        );
+
+        if (typeMasterData.length > 0) {
+          responseData = {
+            ...responseData,
+            TypeMasterId: typeMasterData[0].TypeMasterId,
+            TypeName: typeMasterData[0].TypeName,
+            CategoryType: typeMasterData[0].CategoryType,
+            TypeDescription: typeMasterData[0].TypeDescription,
+            Sequence: typeMasterData[0].Sequence,
+          };
+        }
+      }
+
+      return success(res, "Data fetched successfully", responseData);
+    } catch (error) {
+      return failure(res, "Error while processing the request", error.message);
+    }
+  },
+
+  centerNameDropdown: async (req, res) => {
+    try {
+      const selectQuery = `
+        SELECT 
+          c.center_name, 
+          u.UserName AS user_name,
+          u.UserId AS user_id,
+          u.Center_Id AS user_center_ids
+        FROM 
+          Center_Master c
+        LEFT JOIN 
+          \`User\` u ON FIND_IN_SET(c.id, u.Center_Id)
+      `;
+
+      const rows = await query(selectQuery);
+
+      console.log("Query Result:", rows);
+
+      if (!Array.isArray(rows)) {
+        throw new Error("Unexpected query result format");
+      }
+      const centers = {};
+      rows.forEach((row) => {
+        if (!centers[row.center_name]) {
+          centers[row.center_name] = {
+            users: [],
+            userIds: new Set(),
+          };
+        }
+
+        if (row.user_id && !centers[row.center_name].userIds.has(row.user_id)) {
+          centers[row.center_name].users.push({
+            id: row.user_id,
+            name: row.user_name,
+          });
+          centers[row.center_name].userIds.add(row.user_id);
+        }
+      });
+
+      const result = Object.keys(centers).map((centerName) => ({
+        centerName,
+        users: centers[centerName].users,
+      }));
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      console.error("Error:", error);
       return failure(res, "Error while processing the request", error.message);
     }
   },

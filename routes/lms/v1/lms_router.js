@@ -33,6 +33,7 @@ const {
   submitPaymentDetails,
   getPaymentHistory,
   getCallLogsByUserId,
+  centerNameDropdown
 } = require("../../../controllers/LMS/lms_controller");
 
 const { bulkDataUpload } = require("../../../controllers/LMS/lms_bulk_upload");
@@ -90,5 +91,6 @@ router.get("/get/payment-number/:paymentMode", paymentNumberDropDown);
 router.post("/submit/payment-details", submitPaymentDetails);
 router.get("/get/payment-history/:id", getPaymentHistory);
 router.post("/get-call-logs/:id", getCallLogsByUserId);
+router.get("/get-center-name", centerNameDropdown);
 
 module.exports = router;
