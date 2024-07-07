@@ -1751,6 +1751,7 @@ module.exports = {
     try {
       const selectQuery = `
         SELECT 
+          c.id AS center_id,  
           c.center_name, 
           u.UserName AS user_name,
           u.UserId AS user_id,
@@ -1760,23 +1761,26 @@ module.exports = {
         LEFT JOIN 
           \`User\` u ON FIND_IN_SET(c.id, u.Center_Id)
       `;
-
+  
       const rows = await query(selectQuery);
-
+  
       console.log("Query Result:", rows);
-
+  
       if (!Array.isArray(rows)) {
         throw new Error("Unexpected query result format");
       }
+      
       const centers = {};
       rows.forEach((row) => {
+
         if (!centers[row.center_name]) {
           centers[row.center_name] = {
+            centerId: row.center_id,
             users: [],
             userIds: new Set(),
           };
         }
-
+  
         if (row.user_id && !centers[row.center_name].userIds.has(row.user_id)) {
           centers[row.center_name].users.push({
             id: row.user_id,
@@ -1785,18 +1789,20 @@ module.exports = {
           centers[row.center_name].userIds.add(row.user_id);
         }
       });
-
+  
       const result = Object.keys(centers).map((centerName) => ({
         centerName,
+        centerId: centers[centerName].centerId,
         users: centers[centerName].users,
       }));
-
+  
       return res.status(200).json({ success: true, data: result });
     } catch (error) {
       console.error("Error:", error);
       return failure(res, "Error while processing the request", error.message);
     }
   },
+  
   /**
    * Dropdown to get the options for learning institute
    * @param {Request} req
