@@ -15,19 +15,18 @@ module.exports = {
       const body = req.body;
       let UserId = req.headers.USERID;
 
-       // Check if a lead with the same mobile number already exists
-       const existingLeadQuery =
-       "SELECT LeadId FROM `Lead` WHERE MobileNumber = ?";
-     const existingLeads = await query(existingLeadQuery, [body.MobileNumber]);
+      // Check if a lead with the same mobile number already exists
+      const existingLeadQuery =
+        "SELECT LeadId FROM `Lead` WHERE MobileNumber = ?";
+      const existingLeads = await query(existingLeadQuery, [body.MobileNumber]);
 
-     if (existingLeads.length > 0) {
-       return res.status(500).json({
-         SUCCESS: false,
-         MESSAGE: "Lead Already Exist",
-         DATA: {},
-       });
-     }
-
+      if (existingLeads.length > 0) {
+        return res.status(500).json({
+          SUCCESS: false,
+          MESSAGE: "Lead Already Exist",
+          DATA: {},
+        });
+      }
 
       const leadData = {
         LeadName: body.LeadName || null,
@@ -65,6 +64,7 @@ module.exports = {
         Course_Id: body.Course_Id || null,
         CreatedBy: body.Created_By || UserId,
         AssignedTo: body.Assigned_To || UserId,
+        Center_Id: body.Center_Id,
       };
 
       const leadKeys = Object.keys(leadData).filter(
@@ -700,7 +700,8 @@ GROUP BY
         let search = req.body.data.toLowerCase();
         for (let i of TotalLeadsData) {
           if (
-            (i.hasOwnProperty("LeadName") && i["LeadName"].toLowerCase().includes(search)) ||
+            (i.hasOwnProperty("LeadName") &&
+              i["LeadName"].toLowerCase().includes(search)) ||
             (i.hasOwnProperty("MobileNumber") &&
               i["MobileNumber"].includes(search)) ||
             (i.hasOwnProperty("WhatsAppNo") &&

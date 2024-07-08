@@ -513,6 +513,10 @@ module.exports = {
         updateKey.push("LeadName=?");
         updateValue.push(body.LeadName);
       }
+      if (body.Center_Id) {
+        updateKey.push("Center_Id=?");
+        updateValue.push(body.Center_Id);
+      }
       if (body.VehicleRegistrationNumber) {
         updateKey.push("VehicleRegistrationNumber=?");
         updateValue.push(body.VehicleRegistrationNumber);
