@@ -33,7 +33,7 @@ const {
   submitPaymentDetails,
   getPaymentHistory,
   getCallLogsByUserId,
-  centerNameDropdown
+  centerNameDropdown,
 } = require("../../../controllers/LMS/lms_controller");
 
 const { bulkDataUpload } = require("../../../controllers/LMS/lms_bulk_upload");

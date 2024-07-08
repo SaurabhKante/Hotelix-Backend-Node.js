@@ -185,7 +185,6 @@ module.exports = {
       l.CityId,
       cm.City_Name,
       stm.State_Id,
-      stm.State_Name
       stm.State_Name,
       (
         select

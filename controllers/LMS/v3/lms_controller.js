@@ -82,6 +82,9 @@ module.exports = {
             Campaign,
           ]);
           leadId = result.insertId;
+          totalLeadsInserted++;
+
+          console.log(result);
         }
 
         if (Array.isArray(CallLogs)) {
@@ -98,17 +101,30 @@ module.exports = {
           `;
             const [existingCallLog] = await query(existingCallLogQuery, [
               leadId,
-              CallType,
-              StartTime,
               CallDuration,
             ]);
+
+            if (!existingCallLog) {
+              // Insert only if no duplicate is found
+              const callLogQuery = `INSERT IGNORE INTO Call_Logs (LeadId, CallType, StartTime, CallDuration) VALUES (?, ?, ?, ?)`;
+              await query(callLogQuery, [
+                leadId,
+                CallType,
+                formattedStartTime,
+                CallDuration,
+              ]);
+            }
           }
         }
       }
+      let totalUnInsertedLeads = totalLeadsReceived - totalLeadsInserted;
 
       return res.json({
         success: true,
         message: "Leads and call logs added/updated successfully",
+        totalLeadsReceived: totalLeadsReceived,
+        totalLeadsInserted: totalLeadsInserted,
+        totalUnInsertedLeads: totalUnInsertedLeads,
       });
     } catch (error) {
       console.error(error);

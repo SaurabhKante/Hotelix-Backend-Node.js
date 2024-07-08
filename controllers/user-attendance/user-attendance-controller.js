@@ -18,24 +18,39 @@ require("dotenv").config();
 const env = process.env.env;
 
 
-async function getLeadCountByDateAndUser(date, userId) {
+async function getLeadCountByDateAndUser(date, userId, checkIn, checkOut) {
   try {
-    // Query to get the total count of LeadIds based on date and userId
+    // Adjust the date to include the time
+    const checkInTime = `${date} ${checkIn}`;
+    const checkOutTime = `${date} ${checkOut}`;
+    console.log(checkInTime, checkOutTime);
+
+    // Create date objects
+    const checkInDate = new Date(`${checkInTime} GMT+0530`);
+    const checkOutDate = new Date(`${checkOutTime} GMT+0530`);
+
+    // Convert checkIn and checkOut times to UTC by subtracting 5.5 hours
+    const checkInUtc = new Date(checkInDate.getTime() - (60 * 1000) + (1 * 60 * 1000)).toISOString().slice(0, 19).replace('T', ' ');
+    const checkOutUtc = new Date(checkOutDate.getTime() - ( 60 * 1000) + (1 * 60 * 1000)).toISOString().slice(0, 19).replace('T', ' ');
+
+    console.log(checkInUtc, checkOutUtc);
+
+    // Query to get the total count of LeadIds based on date, userId, and time range
     const totalSql = `
       SELECT COUNT(LeadId) AS totalCount
-      FROM \`Lead\`
-      WHERE DATE(CreatedOn) = ? AND CreatedBy = ?
+      FROM \`Lead_History\`
+      WHERE DATE(CreatedOn) = ? AND UpdatedBy = ? AND TIME(CreatedOn) BETWEEN TIME(?) AND TIME(?)
     `;
-    const totalResult = await query(totalSql, [date, userId]);
+    const totalResult = await query(totalSql, [date, userId, checkInUtc, checkOutUtc]);
     const totalCount = totalResult[0].totalCount;
-    // Query to get the count of LeadIds with LeadStatus 109 or 108 based on date and userId
+
+    // Query to get the count of LeadIds with LeadStatus 109 or 108 based on date, userId, and time range
     const statusSql = `
-      SELECT COUNT(LeadId) AS statusCount 
-      FROM \`Lead\`
-      WHERE DATE(CreatedOn) = ? AND CreatedBy = ? AND LeadStatus IN (109, 108)
+      SELECT COUNT(LeadId) AS statusCount
+      FROM \`Lead_History\`
+      WHERE DATE(CreatedOn) = ? AND UpdatedBy = ? AND LeadStatus IN (109, 108) AND TIME(CreatedOn) BETWEEN TIME(?) AND TIME(?)
     `;
-    const statusResult = await query(statusSql, [date, userId]);
-    console.log('Status Result:', statusResult);
+    const statusResult = await query(statusSql, [date, userId, checkInUtc, checkOutUtc]);
     const statusCount = statusResult[0].statusCount;
 
     return `${totalCount}/${statusCount}`;
@@ -44,6 +59,10 @@ async function getLeadCountByDateAndUser(date, userId) {
     throw new Error("Internal Server Error");
   }
 }
+
+
+
+
 
 
 module.exports = {
@@ -190,7 +209,7 @@ module.exports = {
       
             const history = [];
             for (const record of historyResult) {
-              const leadData = await getLeadCountByDateAndUser(record.date, userId);
+              const leadData = await getLeadCountByDateAndUser(record.date, userId,record.CheckIn,record.CheckOut );
               history.push({
                 date: record.date,
                 checkedIn: record.CheckIn,
