@@ -1605,63 +1605,27 @@ module.exports = {
   leadTypeDropDown: async function (req, res) {
     try {
       const data = await query(`
-            SELECT 
-                tm.TypeMasterId,
-                tm.TypeName,
-                tm.CategoryType,
-                tm.TypeDescription,
-                tm.Sequence,
-                GROUP_CONCAT(ucm.UserId) AS UserId,  
-                GROUP_CONCAT(u.UserName) AS UserName  
-            FROM 
-                Type_Master AS tm
-            LEFT JOIN UserCenterMapping ucm ON ucm.CenterId = tm.TypeMasterId 
-            LEFT JOIN \`User\` u ON u.UserId = ucm.UserId  
-            WHERE 
-                tm.CategoryType = "LEAD" 
-                AND tm.IsActive = 1
-            GROUP BY 
-                tm.TypeMasterId, tm.TypeName, tm.CategoryType, tm.TypeDescription, tm.Sequence
-        `);
-
-      if (data.length === 0) {
+         SELECT 
+          tm.TypeMasterId,
+          tm.TypeName,
+          tm.CategoryType,
+          tm.TypeDescription,
+          tm.Sequence,
+          ucm.UserId,  
+          u.UserName  
+        FROM 
+          Type_Master AS tm
+        LEFT JOIN UserCenterMapping ucm ON ucm.CenterId = tm.TypeMasterId 
+        LEFT JOIN \`User\` u ON u.UserId = ucm.UserId  
+        WHERE 
+          tm.CategoryType = "LEAD" 
+          AND tm.IsActive = 1
+        GROUP BY 
+          tm.TypeMasterId
+      `);
+      if (data.length === 0)
         return success(res, "No data found for this request", []);
-      }
-
-      // Convert UserIds and UserNames to arrays and create userNameList
-      let userNameList = [];
-      let userIdList = [];
-      const formattedData = data.map((item) => {
-        const userIds = item.UserId
-          ? item.UserId.split(",").map((id) => parseInt(id, 10))
-          : [];
-        const userNames = item.UserName ? item.UserName.split(",") : [];
-
-        // Add the userNames to the userNameList array
-        userNameList = userNameList.concat(userNames);
-        userIdList = userIdList.concat(userIds);
-
-        return {
-          TypeMasterId: item.TypeMasterId,
-          TypeName: item.TypeName,
-          CategoryType: item.CategoryType,
-          TypeDescription: item.TypeDescription,
-          Sequence: item.Sequence,
-          // UserId: userIds,
-          // UserName: userNames
-        };
-      });
-
-      userNameList = [...new Set(userNameList)];
-      userIdList = [...new Set(userIdList)];
-
-      const response = {
-        data: formattedData,
-        userNameList: userNameList,
-        userIdList: userIdList,
-      };
-
-      return success(res, "Data fetched successfully", response);
+      return success(res, "Data fetched successfully", data);
     } catch (error) {
       return failure(res, "Error while processing the request", error.message);
     }
