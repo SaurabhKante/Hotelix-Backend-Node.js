@@ -447,7 +447,6 @@ module.exports = {
         l.learningInstitute_option,
         l.classExtenion_option,
         l.openDemat_option,
-        pd.Paid_Amount,
         pd.Balance_Amount,
         pd.Course_Fees,
         pd.Discount_Amount,
@@ -515,7 +514,7 @@ module.exports = {
     LEFT JOIN \`User\` u3 ON l.AssignedTo = u3.UserId
     JOIN Stage_Master sm ON l.LeadStatus = sm.Stage_Master_Id
     LEFT JOIN Vehicle_Model vm ON l.Vehicle_Model_Id = vm.Model_Id
-    LEFT JOIN \`Vehicle_Brand\` as vb ON l.Course_Id = vb.Brand_Id
+    LEFT JOIN \`Vehicle_Brand\` as vb ON vm.Brand_Id= vb.Brand_Id
     LEFT JOIN City_Master cm ON l.CityId = cm.City_Id
     LEFT JOIN State_Master stm ON cm.State_Id = stm.State_Id
     LEFT JOIN Gender_Master gm ON gm.GenderId = l.Gender
@@ -645,7 +644,7 @@ module.exports = {
     LEFT JOIN \`User\` u3 ON l.AssignedTo = u3.UserId
     JOIN Stage_Master sm ON l.LeadStatus = sm.Stage_Master_Id
     LEFT JOIN Vehicle_Model vm ON l.Vehicle_Model_Id = vm.Model_Id
-    LEFT JOIN Vehicle_Brand vb ON l.Course_Id = vb.Brand_Id
+    LEFT JOIN Vehicle_Brand vb ON vm.Brand_Id = vb.Brand_Id
     LEFT JOIN City_Master cm ON l.CityId = cm.City_Id
     LEFT JOIN State_Master stm ON cm.State_Id = stm.State_Id
     LEFT JOIN Gender_Master gm ON gm.GenderId = l.Gender
