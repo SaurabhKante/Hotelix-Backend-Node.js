@@ -12,29 +12,32 @@ const { nextFollowUp } = require("../lms_controller");
 module.exports = {
   addLeadInBulk: async (req, res) => {
     try {
-      const leadsData = req.body;
-      const UserId = req.headers.USERID;
-      let totalLeadsReceived = leadsData.length;
-      let totalLeadsInserted = 0;
+      const leadsData = req.body; 
+      const UserId = req.headers.USERID; 
+      let totalLeadsReceived = leadsData.length; 
+      let totalLeadsInserted = 0; 
       console.log(leadsData);
-
+  
+      // Get unique campaigns from the leads data
       const uniqueCampaigns = [
         ...new Set(
           leadsData.map((lead) => lead.Campaign).filter((campaign) => campaign)
         ),
       ];
+  
 
       for (const campaign of uniqueCampaigns) {
         const existingCampaignQuery = `SELECT LeadSourceId FROM LeadSource_Master WHERE Source_Name = ?`;
         const [existingCampaign] = await query(existingCampaignQuery, [
           campaign,
         ]);
-
+  
         if (!existingCampaign) {
           const insertCampaignQuery = `INSERT INTO LeadSource_Master (Source_Name) VALUES (?)`;
           await query(insertCampaignQuery, [campaign]);
         }
       }
+  
 
       for (const lead of leadsData) {
         const {
@@ -47,8 +50,8 @@ module.exports = {
           User_Id,
           Campaign,
         } = lead;
-
-        let LeadSourceId = 30; // Default LeadSourceId
+  
+        let LeadSourceId = 30; 
         if (Campaign) {
           const fetchLeadSourceIdQuery = `SELECT LeadSourceId FROM LeadSource_Master WHERE Source_Name = ?`;
           const [source] = await query(fetchLeadSourceIdQuery, [Campaign]);
@@ -56,26 +59,35 @@ module.exports = {
             LeadSourceId = source.LeadSourceId;
           }
         }
+  
 
-        const existingLeadQuery =
-          "SELECT LeadId FROM `Lead` WHERE MobileNumber = ?";
+        const existingLeadQuery = "SELECT LeadId FROM `Lead` WHERE MobileNumber = ?";
         const [existingLead] = await query(existingLeadQuery, [MobileNumber]);
-
+  
         let leadId;
-        let assignedTo = User_Id || UserId;
+        let userToInsert = User_Id;
+  
 
+        const fetchUserQuery = `SELECT UserId FROM \`User\` WHERE UserId = ?`;
+        const [user] = await query(fetchUserQuery, [User_Id]);
+        if (!user) {
+          userToInsert = UserId; 
+        }
+  
         if (existingLead) {
+          // If the lead exists, update it
           leadId = existingLead.LeadId;
           const updateQuery = `UPDATE \`Lead\` SET UpdatedBy = ?, LeadSourceId = ?, Campaign = ? WHERE LeadId = ?`;
-          await query(updateQuery, [UserId, LeadSourceId, Campaign, leadId]);
+          await query(updateQuery, [userToInsert, LeadSourceId, Campaign, leadId]);
         } else {
+
           const leadQuery = `INSERT INTO \`Lead\` (LeadName, LeadSourceId, MobileNumber, CreatedBy, AssignedTo, Email, WhatsAppNo, Comments, Campaign) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
           const result = await query(leadQuery, [
             LeadName,
             LeadSourceId,
             MobileNumber,
-            UserId,
-            assignedTo,
+            userToInsert, 
+            userToInsert, 
             Email,
             WhatsAppNumber,
             Comments,
@@ -83,29 +95,28 @@ module.exports = {
           ]);
           leadId = result.insertId;
           totalLeadsInserted++;
-
+  
           console.log(result);
         }
-
+  
+        // Process call logs if they exist
         if (Array.isArray(CallLogs)) {
           for (const callLog of CallLogs) {
             const { CallType, StartTime, CallDuration } = callLog;
-            const formattedStartTime = moment(StartTime).format(
-              "YYYY-MM-DD HH:mm:ss"
-            );
+            const formattedStartTime = moment(StartTime).format("YYYY-MM-DD HH:mm:ss");
             console.log(StartTime);
             console.log(formattedStartTime);
             const existingCallLogQuery = `
-            SELECT 1 FROM Call_Logs 
-            WHERE LeadId = ? AND CallDuration = ?
-          `;
+              SELECT 1 FROM Call_Logs 
+              WHERE LeadId = ? AND CallDuration = ?
+            `;
             const [existingCallLog] = await query(existingCallLogQuery, [
               leadId,
               CallDuration,
             ]);
-
+  
             if (!existingCallLog) {
-              // Insert only if no duplicate is found
+              // Insert call log if no duplicate is found
               const callLogQuery = `INSERT IGNORE INTO Call_Logs (LeadId, CallType, StartTime, CallDuration) VALUES (?, ?, ?, ?)`;
               await query(callLogQuery, [
                 leadId,
@@ -118,7 +129,7 @@ module.exports = {
         }
       }
       let totalUnInsertedLeads = totalLeadsReceived - totalLeadsInserted;
-
+  
       return res.json({
         success: true,
         message: "Leads and call logs added/updated successfully",
@@ -135,6 +146,7 @@ module.exports = {
       });
     }
   },
+  
   deleteLead: async (req, res) => {
     try {
       const leadId = req.params.id;
@@ -502,7 +514,7 @@ module.exports = {
       let sqlqueryTotalLeads = `
           SELECT
           LeadId,
-              COUNT(CASE WHEN LeadStatus IN (200,199,15,14, 108, 109) THEN 1 END) AS total_leads,
+              COUNT(CASE WHEN LeadStatus IN (200,199,15,14, 108, 109,25,26,27,30,37,44,107) THEN 1 END) AS total_leads,
               COUNT(CASE WHEN LeadStatus = 200 THEN 1 END) AS readyForWalkIn,
               COUNT(CASE WHEN LeadStatus = 199 THEN 1 END) AS walkInDone,
               COUNT(CASE WHEN LeadStatus IN (14, 108, 109) THEN 1 END) AS won,
