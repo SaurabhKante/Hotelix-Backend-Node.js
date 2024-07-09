@@ -141,26 +141,26 @@ module.exports = {
             if (UserId) {
                 // Get the specific UserId if provided
                 userIdsSql = `
-                  SELECT DISTINCT UserId
-                  FROM UserAttendance
-                  WHERE UserId = ? AND DATE(CreatedOn) BETWEEN ? AND ?
+                    SELECT DISTINCT UserId
+                    FROM UserAttendance
+                    WHERE UserId = ? AND DATE(CreatedOn) BETWEEN ? AND ?
                 `;
                 userIdsParams = [UserId, startDate, endDate];
             } else if (Center_Id) {
                 // Get all distinct UserIds within the specified date range and Center_Id
                 userIdsSql = `
-                  SELECT DISTINCT ua.UserId
-                  FROM UserAttendance ua
-                  JOIN \`User\` u ON ua.UserId = u.UserId
-                  WHERE u.Center_Id = ? AND DATE(ua.CreatedOn) BETWEEN ? AND ?
+                    SELECT DISTINCT ua.UserId
+                    FROM UserAttendance ua
+                    JOIN \`User\` u ON ua.UserId = u.UserId
+                    WHERE u.Center_Id = ? AND DATE(ua.CreatedOn) BETWEEN ? AND ?
                 `;
                 userIdsParams = [Center_Id, startDate, endDate];
             } else {
                 // Get all distinct UserIds within the specified date range
                 userIdsSql = `
-                  SELECT DISTINCT UserId
-                  FROM UserAttendance
-                  WHERE DATE(CreatedOn) BETWEEN ? AND ?
+                    SELECT DISTINCT UserId
+                    FROM UserAttendance
+                    WHERE DATE(CreatedOn) BETWEEN ? AND ?
                 `;
                 userIdsParams = [startDate, endDate];
             }
@@ -188,9 +188,9 @@ module.exports = {
     
                 // Get current attendance for the user
                 const currentSql = `
-                  SELECT UserId, DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
-                  FROM UserAttendance
-                  WHERE UserId = ? AND DATE(CreatedOn) = CURDATE()
+                    SELECT UserId, DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
+                    FROM UserAttendance
+                    WHERE UserId = ? AND DATE(CreatedOn) = CURDATE()
                 `;
                 const currentResult = await query(currentSql, [userId]);
     
@@ -214,17 +214,23 @@ module.exports = {
     
                 // Get attendance history for the user between startDate and endDate
                 const historySql = `
-                  SELECT DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
-                  FROM UserAttendance
-                  WHERE UserId = ? AND DATE(CreatedOn) BETWEEN ? AND ?
-                  ORDER BY CreatedOn DESC
+                    SELECT DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
+                    FROM UserAttendance
+                    WHERE UserId = ? AND DATE(CreatedOn) BETWEEN ? AND ?
+                    ORDER BY CreatedOn DESC
                 `;
                 const historyResult = await query(historySql, [userId, startDate, endDate]);
     
                 const history = [];
                 if (historyResult.length > 0) {
                     for (const record of historyResult) {
-                        const leadData = await getLeadCountByDateAndUser(record.date, userId, record.CheckIn, record.CheckOut);
+                        let leadData = null;
+    
+                        // Only call getLeadCountByDateAndUser if CheckOut is not null
+                        if (record.CheckOut) {
+                            leadData = await getLeadCountByDateAndUser(record.date, userId, record.CheckIn, record.CheckOut);
+                        }
+    
                         history.push({
                             date: record.date,
                             checkedIn: record.CheckIn,
@@ -256,6 +262,7 @@ module.exports = {
             return failure(res, "Internal Server Error");
         }
     },
+    
     
       
 };
