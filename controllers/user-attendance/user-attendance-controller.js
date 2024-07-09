@@ -129,107 +129,133 @@ module.exports = {
 
       getUserAttendance: async (req, res) => {
         const { startDate, endDate, Center_Id, UserId } = req.body;
-      
+    
         if (!startDate || !endDate) {
-          return failure(res, "Missing required fields");
+            return failure(res, "Missing required fields");
         }
-      
+    
         try {
-          let userIdsSql;
-          let userIdsParams;
-      
-          if (UserId) {
-            // Get the specific UserId if provided
-            userIdsSql = `
-              SELECT DISTINCT UserId
-              FROM UserAttendance
-              WHERE UserId = ? AND DATE(CreatedOn) BETWEEN ? AND ?
-            `;
-            userIdsParams = [UserId, startDate, endDate];
-          } else if (Center_Id) {
-            // Get all distinct UserIds within the specified date range and Center_Id
-            userIdsSql = `
-              SELECT DISTINCT ua.UserId
-              FROM UserAttendance ua
-              JOIN \`User\` u ON ua.UserId = u.UserId
-              WHERE u.Center_Id = ? AND DATE(ua.CreatedOn) BETWEEN ? AND ?
-            `;
-            userIdsParams = [Center_Id, startDate, endDate];
-          } else {
-            // Get all distinct UserIds within the specified date range
-            userIdsSql = `
-              SELECT DISTINCT UserId
-              FROM UserAttendance
-              WHERE DATE(CreatedOn) BETWEEN ? AND ?
-            `;
-            userIdsParams = [startDate, endDate];
-          }
-      
-          const userIdsResult = await query(userIdsSql, userIdsParams);
-      
-          const userAttendances = [];
-      
-          for (const user of userIdsResult) {
-            const userId = user.UserId;
-      
-            // Get current attendance for the user
-            const currentSql = `
-              SELECT UserId, DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
-              FROM UserAttendance
-              WHERE UserId = ? AND DATE(CreatedOn) = CURDATE()
-            `;
-            const currentResult = await query(currentSql, [userId]);
-      
-            let currentAttendance = {
-              userId: parseInt(userId),
-              date: null,
-              checkedIn: null,
-              checkedOut: null,
-              duration: null
-            };
-      
-            if (currentResult.length > 0) {
-              currentAttendance = {
-                userId: parseInt(userId),
-                date: currentResult[0].date,
-                checkedIn: currentResult[0].CheckIn,
-                checkedOut: currentResult[0].CheckOut,
-                duration: currentResult[0].Duration
-              };
+            let userIdsSql;
+            let userIdsParams;
+    
+            if (UserId) {
+                // Get the specific UserId if provided
+                userIdsSql = `
+                  SELECT DISTINCT UserId
+                  FROM UserAttendance
+                  WHERE UserId = ? AND DATE(CreatedOn) BETWEEN ? AND ?
+                `;
+                userIdsParams = [UserId, startDate, endDate];
+            } else if (Center_Id) {
+                // Get all distinct UserIds within the specified date range and Center_Id
+                userIdsSql = `
+                  SELECT DISTINCT ua.UserId
+                  FROM UserAttendance ua
+                  JOIN \`User\` u ON ua.UserId = u.UserId
+                  WHERE u.Center_Id = ? AND DATE(ua.CreatedOn) BETWEEN ? AND ?
+                `;
+                userIdsParams = [Center_Id, startDate, endDate];
+            } else {
+                // Get all distinct UserIds within the specified date range
+                userIdsSql = `
+                  SELECT DISTINCT UserId
+                  FROM UserAttendance
+                  WHERE DATE(CreatedOn) BETWEEN ? AND ?
+                `;
+                userIdsParams = [startDate, endDate];
             }
-      
-            // Get attendance history for the user between startDate and endDate
-            const historySql = `
-              SELECT DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
-              FROM UserAttendance
-              WHERE UserId = ? AND DATE(CreatedOn) BETWEEN ? AND ?
-              ORDER BY CreatedOn DESC
-            `;
-            const historyResult = await query(historySql, [userId, startDate, endDate]);
-      
-            const history = [];
-            for (const record of historyResult) {
-              const leadData = await getLeadCountByDateAndUser(record.date, userId,record.CheckIn,record.CheckOut );
-              history.push({
-                date: record.date,
-                checkedIn: record.CheckIn,
-                checkedOut: record.CheckOut,
-                leadData,
-                duration: record.Duration
-              });
+    
+            const userIdsResult = await query(userIdsSql, userIdsParams);
+    
+            const userAttendances = [];
+    
+            // Check if userIdsResult is empty
+            if (userIdsResult.length === 0) {
+                // If no data is present, send null values in the response Data object
+                userAttendances.push({
+                    userId: null,
+                    date: null,
+                    checkedIn: null,
+                    checkedOut: null,
+                    duration: null,
+                    history: []
+                });
+                return success(res, "No attendance data found for the given filters", userAttendances);
             }
-      
-            userAttendances.push({
-              ...currentAttendance,
-              history
-            });
-          }
-      
-          return success(res, "Attendance data fetched successfully", userAttendances);
+    
+            for (const user of userIdsResult) {
+                const userId = user.UserId;
+    
+                // Get current attendance for the user
+                const currentSql = `
+                  SELECT UserId, DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
+                  FROM UserAttendance
+                  WHERE UserId = ? AND DATE(CreatedOn) = CURDATE()
+                `;
+                const currentResult = await query(currentSql, [userId]);
+    
+                let currentAttendance = {
+                    userId: parseInt(userId),
+                    date: null,
+                    checkedIn: null,
+                    checkedOut: null,
+                    duration: null
+                };
+    
+                if (currentResult.length > 0) {
+                    currentAttendance = {
+                        userId: parseInt(userId),
+                        date: currentResult[0].date,
+                        checkedIn: currentResult[0].CheckIn,
+                        checkedOut: currentResult[0].CheckOut,
+                        duration: currentResult[0].Duration
+                    };
+                }
+    
+                // Get attendance history for the user between startDate and endDate
+                const historySql = `
+                  SELECT DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
+                  FROM UserAttendance
+                  WHERE UserId = ? AND DATE(CreatedOn) BETWEEN ? AND ?
+                  ORDER BY CreatedOn DESC
+                `;
+                const historyResult = await query(historySql, [userId, startDate, endDate]);
+    
+                const history = [];
+                if (historyResult.length > 0) {
+                    for (const record of historyResult) {
+                        const leadData = await getLeadCountByDateAndUser(record.date, userId, record.CheckIn, record.CheckOut);
+                        history.push({
+                            date: record.date,
+                            checkedIn: record.CheckIn,
+                            checkedOut: record.CheckOut,
+                            leadData,
+                            duration: record.Duration
+                        });
+                    }
+                } else {
+                    // If no history data is present, push null values for history
+                    history.push({
+                        date: null,
+                        checkedIn: null,
+                        checkedOut: null,
+                        leadData: null,
+                        duration: null
+                    });
+                }
+    
+                userAttendances.push({
+                    ...currentAttendance,
+                    history
+                });
+            }
+    
+            return success(res, "Attendance data fetched successfully", userAttendances);
         } catch (error) {
-          console.error("Error fetching attendance data:", error);
-          return failure(res, "Internal Server Error");
+            console.error("Error fetching attendance data:", error);
+            return failure(res, "Internal Server Error");
         }
-      },
+    },
+    
       
 };
