@@ -644,7 +644,7 @@ module.exports = {
             COUNT(*) AS total_leads,
             COUNT(CASE WHEN LeadStatus IN (14, 108, 109) THEN 1 END) AS won,
             COUNT(CASE WHEN LeadStatus = 10 THEN 1 END) AS fresh,
-            COUNT(CASE WHEN LeadStatus IN (11,18,19,20,21,22,23,24,31,43,110,135,149,150) THEN 1 END) AS followUp,
+            COUNT(CASE WHEN LeadStatus IN (11,18,19,20,21,22,23,24,31,43,110,135,149,150,199,200) THEN 1 END) AS followUp,
             COUNT(CASE WHEN LeadStatus IN (15,25,26,27,30,37,44,107,151,152) THEN 1 END) AS closed,
             COUNT(CASE WHEN LeadStatus = 16 THEN 1 END) AS reinquired
         FROM
