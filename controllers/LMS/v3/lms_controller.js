@@ -991,15 +991,18 @@ module.exports = {
         Comments,
         Attached_file,
         utr_number,
+        Model_Id,  
+        Course_Id  
       } = req.body;
-
-      const insertCampaignQuery = `
-            INSERT INTO Payment_Details (LeadId, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number,Course_Fees,Comments, Attached_file, utr_number, Created_On)
-            VALUES (?, ?, ?,?, ?,?, ?, ?, ?,?, NOW())
-        `;
-
-      const result = await query(insertCampaignQuery, [
+  
+      const insertPaymentQuery = `
+        INSERT INTO Payment_Details (LeadId,Course_Id, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number, Course_Fees, Comments, Attached_file, utr_number, Created_On)
+        VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      `;
+  
+      const paymentResult = await query(insertPaymentQuery, [
         LeadId,
+        Course_Id,
         Paid_Amount,
         Balance_Amount,
         CreatedBy,
@@ -1010,10 +1013,20 @@ module.exports = {
         Attached_file,
         utr_number,
       ]);
-
-      if (result.affectedRows > 0) {
+  
+      if (paymentResult.affectedRows > 0) {
+        // Update Lead table with Model_Id and Course_Id if provided
+        const updateLeadQuery = `
+          UPDATE \`Lead\`
+          SET
+            Vehicle_Model_Id = ?,
+            Course_Id = ?
+          WHERE LeadId = ?
+        `;
+        await query(updateLeadQuery, [Model_Id, Course_Id, LeadId]);
+  
         return success(res, "Payment details inserted successfully", {
-          Payment_Details_Id: result.insertId,
+          Payment_Details_Id: paymentResult.insertId,
         });
       } else {
         return failure(res, "Failed to insert payment details", []);
@@ -1023,4 +1036,92 @@ module.exports = {
       return failure(res, "Something went wrong", []);
     }
   },
+  
+
+  addLeadPayment: async (req, res) => {
+    try {
+        const {
+            LeadName,
+            MobileNumber,
+            WhatsAppNo,
+            CreatedBy,
+            Course_Id,
+            Vehicle_Model_Id,
+            LeadStatus,
+            Course_Fees,
+            Paid_Amount,
+            Balance_Amount,
+            Attached_file,
+            utr_number
+        } = req.body;
+
+        // Check if a lead with the same MobileNumber already exists
+        const checkLeadQuery = `
+            SELECT LeadId FROM \`Lead\` WHERE MobileNumber = ?
+        `;
+        const existingLeads = await query(checkLeadQuery, [MobileNumber]);
+
+        if (existingLeads.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: "Lead with the same MobileNumber already exists",
+            data: {
+              LeadId: existingLeads[0].LeadId
+            }
+          });
+        }
+
+        // Insert into Lead table
+        const insertLeadQuery = `
+            INSERT INTO \`Lead\` (LeadName, MobileNumber, WhatsAppNo, CreatedBy, Course_Id, Vehicle_Model_Id, LeadStatus)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        const leadValues = [
+            LeadName,
+            MobileNumber,
+            WhatsAppNo,
+            CreatedBy,
+            Course_Id,
+            Vehicle_Model_Id,
+            LeadStatus
+        ];
+        const leadInsertResult = await query(insertLeadQuery, leadValues);
+        const LeadId = leadInsertResult.insertId;
+
+        // Insert into Payment_Details table
+        const insertPaymentQuery = `
+            INSERT INTO Payment_Details (Course_Fees, Paid_Amount, Balance_Amount, Created_By,Course_Id, Attached_file, utr_number, LeadId)
+            VALUES (?, ?, ?,?, ?, ?, ?, ?)
+        `;
+        const paymentValues = [
+            Course_Fees,
+            Paid_Amount,
+            Balance_Amount,
+            CreatedBy,
+            Course_Id,
+            Attached_file,
+            utr_number,
+            LeadId
+        ];
+        await query(insertPaymentQuery, paymentValues);
+
+        return res.json({
+            success: true,
+            message: "Lead data added successfully",
+            data: {}
+        });
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({
+            success: false,
+            message: "Error while adding lead data",
+            error: err.message
+        });
+    }
+},
+
+
+
+  
 };
