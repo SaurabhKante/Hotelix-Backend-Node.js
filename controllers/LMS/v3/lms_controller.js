@@ -746,22 +746,21 @@ module.exports = {
 
   getPaymentSummaryData: async (req, res) => {
     try {
+        const {
+            startDate,
+            endDate,
+            Payment_Mode,
+            Payment_Number,
+            Model_Name,
+            Brand_Name,
+            CenterName,
+            CreatedBy,
+            searchData,
+            Page,
+            pageSize,
+        } = req.body;
 
-      const {
-        startDate,
-        endDate,
-        Payment_Mode,
-        Payment_Number,
-        Model_Name,
-        Brand_Name,
-        CenterName,
-        CreatedBy,
-        searchData,
-        Page,
-        pageSize,
-      } = req.body;
-
-      let sqlqueryPaymentLeads = `
+        let sqlqueryPaymentLeads = `
             SELECT 
                 L.LeadId, 
                 L.LeadName, 
@@ -780,74 +779,83 @@ module.exports = {
             WHERE 1=1
         `;
 
-      const filters = [];
-      if (!searchData) {
-        if (startDate) filters.push(`P.Created_On >= '${startDate} 00:00:00'`);
-        if (endDate) filters.push(`P.Created_On <= '${endDate} 23:59:00'`);
-        if (Payment_Mode) filters.push(`P.Payment_Mode = '${Payment_Mode}'`);
-        if (Payment_Number)
-          filters.push(`P.Payment_Number = '${Payment_Number}'`);
-        if (Model_Name) filters.push(`VM.Model_Name = '${Model_Name}'`);
-        if (Brand_Name) filters.push(`VB.Brand_Name = '${Brand_Name}'`);
-        if (CenterName) filters.push(`CM.center_name = '${CenterName}'`);
-        if (CreatedBy) filters.push(`L.CreatedBy = '${CreatedBy}'`);
-        if (filters.length > 0) {
-          sqlqueryPaymentLeads += ` AND ${filters.join(" AND ")}`;
+        const filters = [];
+        if (!searchData) {
+            if (startDate) filters.push(`P.Created_On >= '${startDate} 00:00:00'`);
+            if (endDate) filters.push(`P.Created_On <= '${endDate} 23:59:00'`);
+            if (Payment_Mode) filters.push(`P.Payment_Mode = '${Payment_Mode}'`);
+            if (Payment_Number) filters.push(`P.Payment_Number = '${Payment_Number}'`);
+            if (Model_Name) filters.push(`VM.Model_Name = '${Model_Name}'`);
+            if (Brand_Name) filters.push(`VB.Brand_Name = '${Brand_Name}'`);
+            if (CenterName) filters.push(`CM.center_name = '${CenterName}'`);
+            if (CreatedBy) filters.push(`L.CreatedBy = '${CreatedBy}'`);
+            if (filters.length > 0) {
+                sqlqueryPaymentLeads += ` AND ${filters.join(" AND ")}`;
+            }
         }
-      }
 
-      sqlqueryPaymentLeads += ` GROUP BY L.LeadId ORDER BY P.Created_On DESC`;
+        sqlqueryPaymentLeads += ` GROUP BY L.LeadId ORDER BY P.Created_On DESC`;
 
-      const resultsToPaymentLead = await query(sqlqueryPaymentLeads);
+        const resultsToPaymentLead = await query(sqlqueryPaymentLeads);
 
-      let filteredResults = resultsToPaymentLead;
+        let filteredResults = resultsToPaymentLead;
 
-      if (searchData) {
-        const searchDataLower = searchData.toLowerCase();
-        filteredResults = resultsToPaymentLead.filter((lead) => {
-          const leadNameMatch =
-            lead.LeadName.toLowerCase().includes(searchDataLower);
-          const mobileNumberMatch =
-            lead.MobileNumber &&
-            lead.MobileNumber.toLowerCase().includes(searchDataLower);
-          const whatsAppNoMatch =
-            lead.WhatsAppNo &&
-            lead.WhatsAppNo.toLowerCase().includes(searchDataLower);
-          return leadNameMatch || mobileNumberMatch || whatsAppNoMatch;
-        });
-      }
+        // Updated part: search for leads based on searchData
+        if (searchData) {
+            const searchDataLower = searchData.toLowerCase();
+            const searchQuery = `
+                SELECT 
+                    L.LeadId, 
+                    L.LeadName, 
+                    L.MobileNumber, 
+                    L.WhatsAppNo, 
+                    L.Course_Id,
+                    VB.Brand_Name,
+                    L.CreatedBy
+                FROM \`Lead\` AS L
+                LEFT JOIN \`Vehicle_Brand\` AS VB ON L.Course_Id = VB.Brand_Id
+                LEFT JOIN \`Vehicle_Model\` AS VM ON L.Vehicle_Model_Id = VM.Model_Id
+                LEFT JOIN Center_Master AS CM ON L.Center_Id = CM.id
+                WHERE L.LeadName LIKE '%${searchDataLower}%' 
+                OR L.MobileNumber LIKE '%${searchDataLower}%' 
+                OR L.WhatsAppNo LIKE '%${searchDataLower}%'
+            `;
 
-      const leadIds = filteredResults.map((lead) => lead.LeadId);
+            const searchResults = await query(searchQuery);
+            filteredResults = searchResults;
+        }
 
-      if (leadIds.length === 0) {
-        return res.json({
-          success: true,
-          message: "No data found",
-          data: {
-            Receivable: 0,
-            ReceivedAmount: 0,
-            RemainingAmount: 0,
-            GooglePayAmount: 0,
-            CashAmount: 0,
-            PhonePeAmount: 0,
-            OthersAmount: 0,
-            PaymentSummary: [],
-            totalCount: 0,
-            totalPages: 0,
-            currentPage: Page || 1,
-          },
-        });
-      }
+        const leadIds = filteredResults.map((lead) => lead.LeadId);
 
-      let sqlqueryPaymentDetails = `
+        if (leadIds.length === 0) {
+            return res.json({
+                success: true,
+                message: "No data found",
+                data: {
+                    Receivable: 0,
+                    ReceivedAmount: 0,
+                    RemainingAmount: 0,
+                    GooglePayAmount: 0,
+                    CashAmount: 0,
+                    PhonePeAmount: 0,
+                    OthersAmount: 0,
+                    PaymentSummary: [],
+                    totalCount: 0,
+                    totalPages: 0,
+                    currentPage: Page || 1,
+                },
+            });
+        }
+
+        let sqlqueryPaymentDetails = `
             SELECT * FROM \`Payment_Details\`
             WHERE LeadId IN (${leadIds.join(",")})
             ORDER BY Created_On DESC
         `;
 
-      const resultsPaymentDetails = await query(sqlqueryPaymentDetails);
+        const resultsPaymentDetails = await query(sqlqueryPaymentDetails);
 
-      let sqlqueryPaymentModes = `
+        let sqlqueryPaymentModes = `
             SELECT P.Payment_Mode, SUM(P.Paid_Amount) AS TotalPaidAmount
             FROM \`Payment_Details\` AS P
             LEFT JOIN \`Lead\` AS L ON P.LeadId = L.LeadId
@@ -857,116 +865,112 @@ module.exports = {
             WHERE P.LeadId IN (${leadIds.join(",")})
         `;
 
-      if (!searchData && filters.length > 0) {
-        sqlqueryPaymentModes += ` AND ${filters
-          .join(" AND ")
-          .replace(/P\./g, "")}`;
-      }
-      sqlqueryPaymentModes += ` GROUP BY P.Payment_Mode`;
+        if (!searchData && filters.length > 0) {
+            sqlqueryPaymentModes += ` AND ${filters.join(" AND ").replace(/P\./g, "")}`;
+        }
+        sqlqueryPaymentModes += ` GROUP BY P.Payment_Mode`;
 
-      const resultsPaymentModes = await query(sqlqueryPaymentModes);
+        const resultsPaymentModes = await query(sqlqueryPaymentModes);
 
-      const receivableAmount = filteredResults.reduce(
-        (total, lead) => total + lead.Course_Fees,
-        0
-      );
-      const receivedAmount = filteredResults.reduce(
-        (total, lead) => total + lead.TotalPaidAmount,
-        0
-      );
-
-      const paymentSummaryData = filteredResults.map((lead) => {
-        const paymentSummary = resultsPaymentDetails
-          .filter((payment) => payment.LeadId === lead.LeadId)
-          .map((payment) => ({
-            Created_On: payment.Created_On,
-            Payment_Mode: payment.Payment_Mode,
-            Payment_Number: payment.Payment_Number,
-            Paid_Amount: payment.Paid_Amount,
-            Attached_file: payment.Attached_file,
-            utr_number: payment.utr_number,
-            Comments: payment.Comments,
-          }));
-
-        const totalPaidAmountForLead = paymentSummary.reduce(
-          (total, payment) => total + payment.Paid_Amount,
-          0
+        const receivableAmount = filteredResults.reduce(
+            (total, lead) => total + lead.Course_Fees,
+            0
+        );
+        const receivedAmount = filteredResults.reduce(
+            (total, lead) => total + lead.TotalPaidAmount,
+            0
         );
 
-        return {
-          LeadId: lead.LeadId,
-          LeadName: lead.LeadName,
-          MobileNumber: lead.MobileNumber,
-          WhatsAppNo: lead.WhatsAppNo,
-          Course_Id: lead.Course_Id,
-          Course_Name: lead.Brand_Name,
-          Course_Fees: lead.Course_Fees,
-          CreatedBy: lead.CreatedBy,
-          TotalPaidAmount: totalPaidAmountForLead,
-          PaymentSummary: paymentSummary,
+        const paymentSummaryData = filteredResults.map((lead) => {
+            const paymentSummary = resultsPaymentDetails
+                .filter((payment) => payment.LeadId === lead.LeadId)
+                .map((payment) => ({
+                    Created_On: payment.Created_On,
+                    Payment_Mode: payment.Payment_Mode,
+                    Payment_Number: payment.Payment_Number,
+                    Paid_Amount: payment.Paid_Amount,
+                    Attached_file: payment.Attached_file,
+                    utr_number: payment.utr_number,
+                    Comments: payment.Comments,
+                }));
+
+            const totalPaidAmountForLead = paymentSummary.reduce(
+                (total, payment) => total + payment.Paid_Amount,
+                0
+            );
+
+            return {
+                LeadId: lead.LeadId,
+                LeadName: lead.LeadName,
+                MobileNumber: lead.MobileNumber,
+                WhatsAppNo: lead.WhatsAppNo,
+                Course_Id: lead.Course_Id,
+                Course_Name: lead.Brand_Name,
+                Course_Fees: lead.Course_Fees,
+                CreatedBy: lead.CreatedBy,
+                TotalPaidAmount: totalPaidAmountForLead,
+                PaymentSummary: paymentSummary,
+            };
+        });
+
+        const totalReceivedAmount = paymentSummaryData.reduce(
+            (total, paid) => total + paid.TotalPaidAmount,
+            0
+        );
+        const remainingAmount = receivableAmount - totalReceivedAmount;
+
+        // Aggregate sums for each payment mode
+        const paymentModeSums = {
+            GooglePayAmount: 0,
+            CashAmount: 0,
+            PhonePeAmount: 0,
+            OthersAmount: 0,
         };
-      });
 
-      const totalReceivedAmount = paymentSummaryData.reduce(
-        (total, paid) => total + paid.TotalPaidAmount,
-        0
-      );
-      const remainingAmount = receivableAmount - totalReceivedAmount;
+        resultsPaymentModes.forEach((mode) => {
+            if (mode.Payment_Mode === "Google Pay") {
+                paymentModeSums.GooglePayAmount = mode.TotalPaidAmount;
+            } else if (mode.Payment_Mode === "Cash") {
+                paymentModeSums.CashAmount = mode.TotalPaidAmount;
+            } else if (mode.Payment_Mode === "Phone Pe") {
+                paymentModeSums.PhonePeAmount = mode.TotalPaidAmount;
+            } else {
+                paymentModeSums.OthersAmount += mode.TotalPaidAmount;
+            }
+        });
 
-      // Aggregate sums for each payment mode
-      const paymentModeSums = {
-        GooglePayAmount: 0,
-        CashAmount: 0,
-        PhonePeAmount: 0,
-        OthersAmount: 0,
-      };
+        // Pagination logic
+        const totalCount = paymentSummaryData.length;
+        const totalPages = Math.ceil(totalCount / pageSize);
+        const currentPage = Page || 1;
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedResults = paymentSummaryData.slice(startIndex, endIndex);
 
-      resultsPaymentModes.forEach((mode) => {
-        if (mode.Payment_Mode === "Google Pay") {
-          paymentModeSums.GooglePayAmount = mode.TotalPaidAmount;
-        } else if (mode.Payment_Mode === "Cash") {
-          paymentModeSums.CashAmount = mode.TotalPaidAmount;
-        } else if (mode.Payment_Mode === "Phone Pe") {
-          paymentModeSums.PhonePeAmount = mode.TotalPaidAmount;
-        } else {
-          paymentModeSums.OthersAmount += mode.TotalPaidAmount;
-        }
-      });
-
-      // Pagination logic
-      const totalCount = paymentSummaryData.length;
-      const totalPages = Math.ceil(totalCount / pageSize);
-      const currentPage = Page || 1;
-      const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedResults = paymentSummaryData.slice(startIndex, endIndex);
-
-      return res.json({
-        success: true,
-        message: "Fetched Successfully",
-        data: {
-          TotalCount: totalCount,
-          TotalPages: totalPages,
-          CurrentPage: currentPage,
-          Receivable: receivableAmount,
-          ReceivedAmount: totalReceivedAmount,
-          RemainingAmount: remainingAmount,
-          ...paymentModeSums,
-
-          PaymentSummary: paginatedResults,
-
-          // paginatedResults
-        },
-      });
+        return res.json({
+            success: true,
+            message: "Fetched Successfully",
+            data: {
+                TotalCount: totalCount,
+                TotalPages: totalPages,
+                CurrentPage: currentPage,
+                Receivable: receivableAmount,
+                ReceivedAmount: totalReceivedAmount,
+                RemainingAmount: remainingAmount,
+                ...paymentModeSums,
+                PaymentSummary: paginatedResults,
+            },
+        });
     } catch (err) {
-      console.error(err);
-      return res.status(500).json({
-        success: false,
-        message: "Error while fetching data",
-        error: err.message,
-      });
+        console.error(err);
+        return res.status(500).json({
+            success: false,
+            message: "Error while fetching data",
+            error: err.message,
+        });
     }
-  },
+},
+
 
   addNewPayment: async (req, res) => {
     try {
