@@ -38,7 +38,7 @@ async function getLeadCountByDateAndUser(date, userId, checkIn, checkOut) {
     // Query to get the total count of LeadIds based on date, userId, and time range
     const totalSql = `
       SELECT COUNT(LeadId) AS totalCount
-      FROM \`Lead_History\`
+      FROM \`Lead\`
       WHERE DATE(CreatedOn) = ? AND UpdatedBy = ? AND TIME(CreatedOn) BETWEEN TIME(?) AND TIME(?)
     `;
     const totalResult = await query(totalSql, [date, userId, checkInUtc, checkOutUtc]);
@@ -47,7 +47,7 @@ async function getLeadCountByDateAndUser(date, userId, checkIn, checkOut) {
     // Query to get the count of LeadIds with LeadStatus 109 or 108 based on date, userId, and time range
     const statusSql = `
       SELECT COUNT(LeadId) AS statusCount
-      FROM \`Lead_History\`
+      FROM \`Lead\`
       WHERE DATE(CreatedOn) = ? AND UpdatedBy = ? AND LeadStatus IN (109, 108) AND TIME(CreatedOn) BETWEEN TIME(?) AND TIME(?)
     `;
     const statusResult = await query(statusSql, [date, userId, checkInUtc, checkOutUtc]);
