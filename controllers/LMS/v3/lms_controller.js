@@ -1047,13 +1047,14 @@ module.exports = {
             CreatedBy,
             Course_Id,
             Vehicle_Model_Id,
-            LeadStatus,
             Course_Fees,
             Paid_Amount,
             Balance_Amount,
             Attached_file,
             utr_number
         } = req.body;
+
+        const LeadStatus = req.body.LeadStatus || 108;
 
         // Check if a lead with the same MobileNumber already exists
         const checkLeadQuery = `
@@ -1090,8 +1091,8 @@ module.exports = {
 
         // Insert into Payment_Details table
         const insertPaymentQuery = `
-            INSERT INTO Payment_Details (Course_Fees, Paid_Amount, Balance_Amount, Created_By,Course_Id, Attached_file, utr_number, LeadId)
-            VALUES (?, ?, ?,?, ?, ?, ?, ?)
+            INSERT INTO Payment_Details (Course_Fees, Paid_Amount, Balance_Amount, Created_By, Course_Id, Attached_file, utr_number, LeadId)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const paymentValues = [
             Course_Fees,
@@ -1120,6 +1121,7 @@ module.exports = {
         });
     }
 },
+
 
 
 
