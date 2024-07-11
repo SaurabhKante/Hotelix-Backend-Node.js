@@ -1059,6 +1059,7 @@ module.exports = {
             Payment_Number,
             Comments,
             CenterId,
+            Discount_Amount,
         } = req.body;
 
         const LeadStatus = req.body.LeadStatus || 108;
@@ -1100,8 +1101,8 @@ module.exports = {
 
         // Insert into Payment_Details table
         const insertPaymentQuery = `
-            INSERT INTO Payment_Details (Course_Fees, Paid_Amount, Balance_Amount, Created_By, Course_Id, Attached_file, utr_number, LeadId, Payment_Mode, Payment_Number, Comments)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?,?)
+            INSERT INTO Payment_Details (Course_Fees, Paid_Amount, Balance_Amount, Created_By, Course_Id, Attached_file, utr_number, LeadId, Payment_Mode, Payment_Number, Comments, Discount_Amount)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)
         `;
         const paymentValues = [
             Course_Fees,
@@ -1115,6 +1116,7 @@ module.exports = {
             Payment_Mode,
             Payment_Number,
             Comments,
+            Discount_Amount,
         ];
         await query(insertPaymentQuery, paymentValues);
 
