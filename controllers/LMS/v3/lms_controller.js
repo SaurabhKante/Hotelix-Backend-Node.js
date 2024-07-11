@@ -994,6 +994,8 @@ module.exports = {
         Model_Id,  
         Course_Id  
       } = req.body;
+
+      const LeadStatus = req.body.LeadStatus || 108;
   
       const insertPaymentQuery = `
         INSERT INTO Payment_Details (LeadId,Course_Id, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number, Course_Fees, Comments, Attached_file, utr_number, Created_On)
@@ -1020,10 +1022,11 @@ module.exports = {
           UPDATE \`Lead\`
           SET
             Vehicle_Model_Id = ?,
-            Course_Id = ?
+            Course_Id = ?,
+            LeadStatus = ?
           WHERE LeadId = ?
         `;
-        await query(updateLeadQuery, [Model_Id, Course_Id, LeadId]);
+        await query(updateLeadQuery, [Model_Id, Course_Id, LeadStatus, LeadId]);
   
         return success(res, "Payment details inserted successfully", {
           Payment_Details_Id: paymentResult.insertId,
@@ -1055,10 +1058,11 @@ module.exports = {
             Payment_Mode,
             Payment_Number,
             Comments,
+            CenterId,
         } = req.body;
 
         const LeadStatus = req.body.LeadStatus || 108;
-
+        const LeadSourceId = req.body.LeadStatus || 30;
         // Check if a lead with the same MobileNumber already exists
         const checkLeadQuery = `
             SELECT LeadId FROM \`Lead\` WHERE MobileNumber = ?
@@ -1077,8 +1081,8 @@ module.exports = {
 
         // Insert into Lead table
         const insertLeadQuery = `
-            INSERT INTO \`Lead\` (LeadName, MobileNumber, WhatsAppNo, CreatedBy, Course_Id, Vehicle_Model_Id, LeadStatus)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO \`Lead\` (LeadName, MobileNumber, WhatsAppNo, CreatedBy, Course_Id, Vehicle_Model_Id, LeadStatus, Center_Id, LeadSourceId)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)
         `;
         const leadValues = [
             LeadName,
@@ -1088,6 +1092,8 @@ module.exports = {
             Course_Id,
             Vehicle_Model_Id,
             LeadStatus,
+            CenterId,
+            LeadSourceId
         ];
         const leadInsertResult = await query(insertLeadQuery, leadValues);
         const LeadId = leadInsertResult.insertId;
