@@ -892,6 +892,7 @@ module.exports = {
             Payment_Mode: payment.Payment_Mode,
             Payment_Number: payment.Payment_Number,
             Paid_Amount: payment.Paid_Amount,
+            Balance_Amount: payment.Balance_Amount,
             Attached_file: payment.Attached_file,
             utr_number: payment.utr_number,
             Comments: payment.Comments,
@@ -1063,7 +1064,7 @@ module.exports = {
         } = req.body;
 
         const LeadStatus = req.body.LeadStatus || 108;
-        const LeadSourceId = req.body.LeadStatus || 30;
+        const LeadSourceId = req.body.LeadSourceId || 30;
         // Check if a lead with the same MobileNumber already exists
         const checkLeadQuery = `
             SELECT LeadId FROM \`Lead\` WHERE MobileNumber = ?
