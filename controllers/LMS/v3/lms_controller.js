@@ -1082,8 +1082,8 @@ module.exports = {
 
         // Insert into Lead table
         const insertLeadQuery = `
-            INSERT INTO \`Lead\` (LeadName, MobileNumber, WhatsAppNo, CreatedBy, Course_Id, Vehicle_Model_Id, LeadStatus, Center_Id, LeadSourceId, AssignedTo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?)
+            INSERT INTO \`Lead\` (LeadName, MobileNumber, WhatsAppNo, CreatedBy, Course_Id, Vehicle_Model_Id, LeadStatus, Center_Id, LeadSourceId, AssignedTo, BookedAmount)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?,?)
         `;
         const leadValues = [
             LeadName,
@@ -1095,7 +1095,8 @@ module.exports = {
             LeadStatus,
             CenterId,
             LeadSourceId,
-            CreatedBy
+            CreatedBy,
+            Paid_Amount
         ];
         const leadInsertResult = await query(insertLeadQuery, leadValues);
         const LeadId = leadInsertResult.insertId;
