@@ -57,7 +57,7 @@ async function updateUserAttendance(userId, checkIn, checkOut) {
   try {
     const checkInTime = new Date(`1970-01-01T${checkIn}Z`);
     const checkOutTime = new Date(`1970-01-01T${checkOut}Z`);
-    const duration = (checkOutTime - checkInTime) / 1000; // duration in seconds
+    const duration = (checkOutTime - checkInTime) / 1000;
 
     const updateSql = `
       UPDATE UserAttendance 
