@@ -182,40 +182,6 @@ module.exports = {
     }
   },
 
-  deleteLead: async (req, res) => {
-    try {
-      const leadId = req.params.id;
-
-      const [existingLead, _] = await query(
-        `Select * from \`Lead\` where LeadId = ?`,
-        [leadId]
-      );
-
-      if (!existingLead || existingLead.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "No Lead found with such id",
-        });
-      }
-
-      await query(`Update \`Lead\` set IsActive = 0 where LeadId = ?`, [
-        leadId,
-      ]);
-
-      res.status(200).json({
-        success: true,
-        message: "Lead deleted successfully",
-        data: [],
-      });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({
-        success: false,
-        message: "Error deleting the leads",
-        error: error.message,
-      });
-    }
-  },
 
   /**
    * Fetch all the data from lead table
@@ -992,15 +958,15 @@ module.exports = {
         Comments,
         Attached_file,
         utr_number,
-        Model_Id,  
-        Course_Id  
+        Model_Id,
+        Course_Id,
       } = req.body;
-
+  
       const LeadStatus = req.body.LeadStatus || 108;
   
       const insertPaymentQuery = `
-        INSERT INTO Payment_Details (LeadId,Course_Id, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number, Course_Fees, Comments, Attached_file, utr_number, Created_On)
-        VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        INSERT INTO Payment_Details (LeadId, Course_Id, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number, Course_Fees, Comments, Attached_file, utr_number, Created_On)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
       `;
   
       const paymentResult = await query(insertPaymentQuery, [
@@ -1019,15 +985,27 @@ module.exports = {
   
       if (paymentResult.affectedRows > 0) {
         // Update Lead table with Model_Id and Course_Id if provided
-        const updateLeadQuery = `
+        let updateLeadQuery = `
           UPDATE \`Lead\`
           SET
-            Vehicle_Model_Id = ?,
-            Course_Id = ?,
             LeadStatus = ?
-          WHERE LeadId = ?
         `;
-        await query(updateLeadQuery, [Model_Id, Course_Id, LeadStatus, LeadId]);
+        const updateValues = [LeadStatus];
+  
+        // Conditionally add Vehicle_Model_Id if Model_Id is not null or undefined
+        if (Model_Id !== null && Model_Id !== undefined) {
+          updateLeadQuery += `, Vehicle_Model_Id = ?`;
+          updateValues.push(Model_Id);
+        }
+        if (Course_Id !== null && Course_Id !== undefined) {
+          updateLeadQuery += `, Course_Id = ?`;
+          updateValues.push(Course_Id);
+        }
+  
+        updateLeadQuery += ` WHERE LeadId = ?`;
+        updateValues.push(LeadId);
+  
+        await query(updateLeadQuery, updateValues);
   
         return success(res, "Payment details inserted successfully", {
           Payment_Details_Id: paymentResult.insertId,
