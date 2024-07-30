@@ -34,6 +34,7 @@ router.use("/api/country", require("./country"));
 router.use("/api/whatsapp", require("./whatsapp"));
 router.use("/api/profession", require("./profession"));
 router.use("/api/user-attendance", require("./user-attendance"));
+router.use("/api/mobile-number", require("./mobile_number"));
 // router.use("/api/customer", require("./customer"));
 // router.use("/api/ota", require("./ota"));
 // router.use("/api/alerts", require("./alerts"));
