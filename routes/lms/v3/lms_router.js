@@ -8,7 +8,8 @@ const {
   addNewPayment,
   getTotalLeadData,
   getPaymentSummaryData,
-  addLeadPayment
+  addLeadPayment,
+  updateLeadToFollowUp
 } = require("../../../controllers/LMS/v3/lms_controller");
 
 router.get("/read", readLmsv3);
@@ -20,5 +21,6 @@ router.post("/get-totallead-data", getTotalLeadData);
 router.post("/get-payment-summary-data", getPaymentSummaryData);
 router.post("/add-new-payment", addNewPayment);
 router.post("/add-lead-payment", addLeadPayment);
+router.post("/update", updateLeadToFollowUp);
 
 module.exports = router;

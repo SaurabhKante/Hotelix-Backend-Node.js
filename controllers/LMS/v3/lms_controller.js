@@ -712,7 +712,6 @@ module.exports = {
 
   getPaymentSummaryData: async (req, res) => {
     try {
-
       const {
         startDate,
         endDate,
@@ -728,13 +727,13 @@ module.exports = {
       } = req.body;
 
       let searchQuery;
-      if (searchData){
-        searchQuery = 'LEFT';
+      if (searchData) {
+        searchQuery = "LEFT";
       } else {
-        searchQuery = 'RIGHT';
+        searchQuery = "RIGHT";
       }
 
-      console.log(searchQuery)
+      console.log(searchQuery);
 
       let sqlqueryPaymentLeads = `
             SELECT 
@@ -858,7 +857,6 @@ module.exports = {
             Payment_Mode: payment.Payment_Mode,
             Payment_Number: payment.Payment_Number,
             Paid_Amount: payment.Paid_Amount,
-            Balance_Amount: payment.Balance_Amount,
             Attached_file: payment.Attached_file,
             utr_number: payment.utr_number,
             Comments: payment.Comments,
@@ -960,13 +958,14 @@ module.exports = {
         utr_number,
         Model_Id,
         Course_Id,
+        Discount_Amount = 0,
       } = req.body;
   
       const LeadStatus = req.body.LeadStatus || 108;
   
       const insertPaymentQuery = `
-        INSERT INTO Payment_Details (LeadId, Course_Id, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number, Course_Fees, Comments, Attached_file, utr_number, Created_On)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        INSERT INTO Payment_Details (LeadId, Course_Id, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number, Course_Fees, Comments, Attached_file, utr_number, Discount_Amount, Created_On)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, NOW())
       `;
   
       const paymentResult = await query(insertPaymentQuery, [
@@ -981,6 +980,7 @@ module.exports = {
         Comments,
         Attached_file,
         utr_number,
+        Discount_Amount
       ]);
   
       if (paymentResult.affectedRows > 0) {
@@ -1118,7 +1118,34 @@ module.exports = {
 },
 
 
+updateLeadToFollowUp : async (req, res) => {
+  const { UserId, LeadId, FollowUpStatus, FollowUpTime } = req.body;
 
+  if (!UserId || !LeadId || !FollowUpStatus) {
+    return res.status(400).json(failure('Missing required fields'));
+  }
+
+  try {
+    // Update the lead record
+    const queryStr = `
+      UPDATE \`Lead\`
+      SET UpdatedBy = ?, LeadStatus = ?, NextFollowUp = ?
+      WHERE LeadId = ?`;
+    
+    const result = await query(queryStr, [UserId, FollowUpStatus, FollowUpTime, LeadId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json(failure('Lead not found'));
+    }
+
+    // Return the LeadId in success response
+    return success(res, "Lead Updated", result);
+    
+  } catch (error) {
+    console.error('Error updating lead:', error);
+    return failure(res, "Error while fetching the data", err.message);
+  }
+},
 
   
 };
