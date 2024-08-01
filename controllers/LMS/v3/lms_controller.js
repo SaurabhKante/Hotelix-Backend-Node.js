@@ -1118,10 +1118,10 @@ module.exports = {
 },
 
 
-updateLeadToFollowUp : async (req, res) => {
-  const { UserId, LeadId, FollowUpStatus, FollowUpTime } = req.body;
+updateLead : async (req, res) => {
+  const { UserId, LeadId, LeadStatus, FollowUpTime } = req.body;
 
-  if (!UserId || !LeadId || !FollowUpStatus) {
+  if (!UserId || !LeadId || !LeadStatus) {
     return res.status(400).json(failure('Missing required fields'));
   }
 
@@ -1132,7 +1132,7 @@ updateLeadToFollowUp : async (req, res) => {
       SET UpdatedBy = ?, LeadStatus = ?, NextFollowUp = ?
       WHERE LeadId = ?`;
     
-    const result = await query(queryStr, [UserId, FollowUpStatus, FollowUpTime, LeadId]);
+    const result = await query(queryStr, [UserId, LeadStatus, FollowUpTime, LeadId]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json(failure('Lead not found'));
