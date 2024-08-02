@@ -149,38 +149,46 @@ module.exports = {
   
   deleteLead: async (req, res) => {
     try {
-      const leadId = req.params.id;
+        const leadId = req.params.id;
 
-      const [existingLead, _] = await query(
-        `Select * from \`Lead\` where LeadId = ?`,
-        [leadId]
-      );
+        // Check if the lead exists
+        const [existingLead, _] = await query(
+            `SELECT * FROM \`Lead\` WHERE LeadId = ?`,
+            [leadId]
+        );
 
-      if (!existingLead || existingLead.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "No Lead found with such id",
+        if (!existingLead || existingLead.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No Lead found with such id",
+            });
+        }
+
+        // Deactivate the lead
+        await query(`UPDATE \`Lead\` SET IsActive = 0 WHERE LeadId = ?`, [
+            leadId,
+        ]);
+
+        // Deactivate the associated payment details
+        await query(`UPDATE \`Payment_Details\` SET Is_Active = 0 WHERE LeadId = ?`, [
+            leadId,
+        ]);
+
+        res.status(200).json({
+            success: true,
+            message: "Lead and associated payment details deleted successfully",
+            data: [],
         });
-      }
-
-      await query(`Update \`Lead\` set IsActive = 0 where LeadId = ?`, [
-        leadId,
-      ]);
-
-      res.status(200).json({
-        success: true,
-        message: "Lead deleted successfully",
-        data: [],
-      });
     } catch (error) {
-      console.error(error);
-      return res.status(500).json({
-        success: false,
-        message: "Error deleting the leads",
-        error: error.message,
-      });
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: "Error deleting the lead and associated payment details",
+            error: error.message,
+        });
     }
-  },
+},
+
 
 
   /**
@@ -751,7 +759,7 @@ module.exports = {
             ${searchQuery} JOIN \`Payment_Details\` AS P ON L.LeadId = P.LeadId
             LEFT JOIN \`Vehicle_Model\` AS VM ON L.Vehicle_Model_Id = VM.Model_Id
             LEFT JOIN Center_Master AS CM ON L.Center_Id = CM.id
-            WHERE 1=1
+            WHERE 1=1 and L.IsActive=1 and P.Is_Active=1
         `;
 
       const filters = [];
@@ -815,7 +823,7 @@ module.exports = {
 
       let sqlqueryPaymentDetails = `
             SELECT * FROM \`Payment_Details\`
-            WHERE LeadId IN (${leadIds.join(",")})
+            WHERE LeadId IN (${leadIds.join(",")}) and Is_Active=1
             ORDER BY Created_On DESC
         `;
 
@@ -828,7 +836,7 @@ module.exports = {
             LEFT JOIN \`Vehicle_Brand\` AS VB ON L.Course_Id = VB.Brand_Id
             LEFT JOIN \`Vehicle_Model\` AS VM ON L.Vehicle_Model_Id = VM.Model_Id
             LEFT JOIN \`Center_Master\` AS CM ON L.Center_Id = CM.id
-            WHERE P.LeadId IN (${leadIds.join(",")})
+            WHERE P.LeadId IN (${leadIds.join(",")}) and P.Is_Active=1
         `;
 
       if (!searchData && filters.length > 0) {
