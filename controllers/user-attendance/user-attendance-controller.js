@@ -53,69 +53,69 @@ async function getLeadCountByDateAndUser(date, userId, checkIn, checkOut) {
   }
 }
 
-async function updateUserAttendance(userId, checkIn, checkOut) {
-  try {
-    const checkInTime = new Date(`1970-01-01T${checkIn}Z`);
-    const checkOutTime = new Date(`1970-01-01T${checkOut}Z`);
-    const duration = (checkOutTime - checkInTime) / 1000;
+// async function updateUserAttendance(userId, checkIn, checkOut) {
+//   try {
+//     const checkInTime = new Date(`1970-01-01T${checkIn}Z`);
+//     const checkOutTime = new Date(`1970-01-01T${checkOut}Z`);
+//     const duration = (checkOutTime - checkInTime) / 1000;
 
-    const updateSql = `
-      UPDATE UserAttendance 
-      SET CheckOut = ?, Duration = ?
-      WHERE UserId = ? AND CheckIn = ?
-    `;
-    await query(updateSql, [checkOut, duration, userId, checkIn]);
+//     const updateSql = `
+//       UPDATE UserAttendance 
+//       SET CheckOut = ?, Duration = ?
+//       WHERE UserId = ? AND CheckIn = ?
+//     `;
+//     await query(updateSql, [checkOut, duration, userId, checkIn]);
 
-    console.log(`Attendance record updated for user ${userId} with CheckOut at ${checkOut}`);
-  } catch (error) {
-    console.error(`Error updating attendance for user ${userId}:`, error);
-  }
-}
+//     console.log(`Attendance record updated for user ${userId} with CheckOut at ${checkOut}`);
+//   } catch (error) {
+//     console.error(`Error updating attendance for user ${userId}:`, error);
+//   }
+// }
 
 // Schedule a task to run every day at 23:59
-cron.schedule('59 23 * * *', async () => {
-  try {
+// cron.schedule('59 23 * * *', async () => {
+//   try {
 
-    let now = new Date();
-    console.log('Original time:', now);
+//     let now = new Date();
+//     console.log('Original time:', now);
 
-    now = new Date(now.getTime() + (5 * 60 + 30) * 60 * 1000);
-    const today = now.toISOString().split('T')[0];
-    console.log('Adjusted time:', now);
-    console.log('Adjusted date:', today);
+//     now = new Date(now.getTime() + (5 * 60 + 30) * 60 * 1000);
+//     const today = now.toISOString().split('T')[0];
+//     console.log('Adjusted time:', now);
+//     console.log('Adjusted date:', today);
 
-    const sql = `
-      SELECT UserId, CheckIn
-      FROM UserAttendance
-      WHERE DATE(CreatedOn) = ? AND CheckOut IS NULL
-    `;
-    const result = await query(sql, [today]);
+//     const sql = `
+//       SELECT UserId, CheckIn
+//       FROM UserAttendance
+//       WHERE DATE(CreatedOn) = ? AND CheckOut IS NULL
+//     `;
+//     const result = await query(sql, [today]);
 
-    for (const row of result) {
-      const userId = row.UserId;
-      const checkIn = row.CheckIn;
-      const checkOut = '23:59:00';
+//     for (const row of result) {
+//       const userId = row.UserId;
+//       const checkIn = row.CheckIn;
+//       const checkOut = '23:59:00';
 
-      await updateUserAttendance(userId, checkIn, checkOut);
-    }
-  } catch (error) {
-    console.error("Error fetching users who haven't checked out:", error);
-  }
-});
+//       await updateUserAttendance(userId, checkIn, checkOut);
+//     }
+//   } catch (error) {
+//     console.error("Error fetching users who haven't checked out:", error);
+//   }
+// });
 
 module.exports = {
   postUserAttendance: async (req, res) => {
-    const { UserId, CheckIn, Xcoordinate, Ycoordinate } = req.body;
-    if (!UserId || !CheckIn || !Xcoordinate || !Ycoordinate) {
+    const { UserId, CheckIn, Address} = req.body;
+    if (!UserId || !CheckIn || !Address) {
       return failure(res, "Missing required fields");
     }
 
     try {
       const sql = `
-        INSERT INTO UserAttendance (UserId, CheckIn, Xcoordinate, Ycoordinate)
-        VALUES (?, ? ,?, ?)
+        INSERT INTO UserAttendance (UserId, CheckIn, Address)
+        VALUES (?, ? ,?)
       `;
-      const result = await query(sql, [UserId, CheckIn, Xcoordinate, Ycoordinate]);
+      const result = await query(sql, [UserId, CheckIn, Address]);
 
       return created(res, "Attendance record created", result);
     } catch (err) {
