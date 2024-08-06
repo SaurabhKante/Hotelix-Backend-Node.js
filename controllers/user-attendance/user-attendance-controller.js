@@ -1,6 +1,7 @@
-const cron = require('node-cron');
+// const cron = require('node-cron');
 const pool = require("../../config/database");
 const util = require("util");
+const moment = require('moment-timezone');
 const query = util.promisify(pool.query).bind(pool);
 const promisePool = require("../../config/dbV2");
 
@@ -105,26 +106,46 @@ async function getLeadCountByDateAndUser(date, userId, checkIn, checkOut) {
 
 module.exports = {
   postUserAttendance: async (req, res) => {
-    const { UserId, CheckIn, Address} = req.body;
-    if (!UserId || !CheckIn || !Address) {
+    const { UserId, CheckIn, CheckInAddress } = req.body;
+  
+    if (!UserId || !CheckIn || !CheckInAddress) {
       return failure(res, "Missing required fields");
     }
-
+  
     try {
-      const sql = `
-        INSERT INTO UserAttendance (UserId, CheckIn, Address)
-        VALUES (?, ? ,?)
+      // Get the current date in Asia/Kolkata timezone
+      const currentDate = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
+      console.log(currentDate);
+      // Combine current date with provided CheckIn time
+      const checkInTimestamp = `${currentDate} ${CheckIn}`;
+  
+      // Check if there's already an attendance record for the user on the same date
+      const checkSql = `
+        SELECT COUNT(*) as count FROM UserAttendance
+        WHERE UserId = ? AND DATE(CheckIn) = ?
       `;
-      const result = await query(sql, [UserId, CheckIn, Address]);
-
+      const checkResult = await query(checkSql, [UserId, currentDate]);
+  
+      // If a record exists, return a message saying the user has already checked in
+      if (checkResult[0].count > 0) {
+        return failure(res, "User has already checked in today");
+      }
+  
+      // If no record exists, proceed to insert the new attendance record
+      const insertSql = `
+        INSERT INTO UserAttendance (UserId, CheckIn, CheckInAddress)
+        VALUES (?, ?, ?)
+      `;
+      const result = await query(insertSql, [UserId, checkInTimestamp, CheckInAddress]);
+  
       return created(res, "Attendance record created", result);
     } catch (err) {
-      return failure(res, "Error while fetching the data", err.message);
+      return failure(res, "Error while processing the request", err.message);
     }
   },
 
   updateUserAttendance: async (req, res) => {
-    const { UserId, CheckIn, CheckOut } = req.body;
+    const { UserId, CheckIn, CheckOut, CheckOutAddress } = req.body;
 
     if (!UserId || !CheckIn || !CheckOut) {
       return failure(res, "Missing required fields");
@@ -146,10 +167,10 @@ module.exports = {
 
       const updateSql = `
         UPDATE UserAttendance 
-        SET CheckOut = ?, Duration = ?
+        SET CheckOut = ?, Duration = ? , CheckOutAddress = ?
         WHERE UserId = ? AND CheckIn = ?
       `;
-      const result = await query(updateSql, [CheckOut, duration, UserId, CheckIn]);
+      const result = await query(updateSql, [CheckOut, duration, CheckOutAddress, UserId, CheckIn]);
 
       return success(res, "Attendance record updated successfully", result);
     } catch (err) {

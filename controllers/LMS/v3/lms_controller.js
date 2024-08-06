@@ -1,6 +1,9 @@
 const pool = require("../../../config/database");
 const util = require("util");
 const moment = require("moment");
+// const excel = require("exceljs");
+// const path = require('path');
+// const fs = require("fs");
 //util.promisify return the promise instead of call back.
 const query = util.promisify(pool.query).bind(pool);
 /**
@@ -865,6 +868,7 @@ module.exports = {
             Payment_Mode: payment.Payment_Mode,
             Payment_Number: payment.Payment_Number,
             Paid_Amount: payment.Paid_Amount,
+            Balance_Amount : payment.Balance_Amount,
             Attached_file: payment.Attached_file,
             utr_number: payment.utr_number,
             Comments: payment.Comments,
@@ -1154,6 +1158,119 @@ updateLead : async (req, res) => {
     return failure(res, "Error while fetching the data", err.message);
   }
 },
+
+    // exportLeadsToExcel: async (req, res) => {
+    //   try {
+    //     const { startDate, endDate } = req.body;
+
+    //     if (!startDate || !endDate) {
+    //         return res.status(400).json({ message: 'Start date and end date are required' });
+    //     }
+
+    //     // Retrieve leads from the database
+    //     const query1 = `
+    //         SELECT * FROM \`Lead\`
+    //         WHERE CreatedOn BETWEEN ? AND ?
+    //     `;
+
+    //     const results = await query(query1, [startDate, endDate]);
+
+    //     // Log the raw results for debugging
+    //     console.log('Query Results:', results);
+
+    //     // Check if results is an array; if not, convert it
+    //     let leadsData = Array.isArray(results) ? results : JSON.parse(JSON.stringify(results));
+
+    //     if (!Array.isArray(leadsData) || leadsData.length === 0) {
+    //         return res.status(404).json({ message: 'No leads found for the given date range' });
+    //     }
+
+    //     // Create a new Excel workbook and worksheet
+    //     const workbook = new excel.Workbook();
+    //     const worksheet = workbook.addWorksheet('Leads');
+
+    //     // Define columns for the worksheet
+    //     worksheet.columns = [
+    //         { header: 'LeadId', key: 'LeadId' },
+    //         { header: 'LeadSourceId', key: 'LeadSourceId' },
+    //         { header: 'ClientMasterId', key: 'ClientMasterId' },
+    //         { header: 'LeadName', key: 'LeadName' },
+    //         { header: 'MobileNumber', key: 'MobileNumber' },
+    //         { header: 'VehicleRegistrationNumber', key: 'VehicleRegistrationNumber' },
+    //         { header: 'Email', key: 'Email' },
+    //         { header: 'LeadTypeId', key: 'LeadTypeId' },
+    //         { header: 'CreatedOn', key: 'CreatedOn' },
+    //         { header: 'CreatedBy', key: 'CreatedBy' },
+    //         { header: 'UpdatedOn', key: 'UpdatedOn' },
+    //         { header: 'UpdatedBy', key: 'UpdatedBy' },
+    //         { header: 'LeadStatus', key: 'LeadStatus' },
+    //         { header: 'Comments', key: 'Comments' },
+    //         { header: 'Vehicle_Model_Id', key: 'Vehicle_Model_Id' },
+    //         { header: 'NextFollowUp', key: 'NextFollowUp' },
+    //         { header: 'CityId', key: 'CityId' },
+    //         { header: 'WhatsAppNo', key: 'WhatsAppNo' },
+    //         { header: 'MfgYr', key: 'MfgYr' },
+    //         { header: 'City', key: 'City' },
+    //         { header: 'Vehicle_Model', key: 'Vehicle_Model' },
+    //         { header: 'Vehicle_Profile', key: 'Vehicle_Profile' },
+    //         { header: 'AssignedTo', key: 'AssignedTo' },
+    //         { header: 'AgeGroup', key: 'AgeGroup' },
+    //         { header: 'Profession', key: 'Profession' },
+    //         { header: 'AnnualIncome', key: 'AnnualIncome' },
+    //         { header: 'Gender', key: 'Gender' },
+    //         { header: 'BookedAmount', key: 'BookedAmount' },
+    //         { header: 'SellingPrice', key: 'SellingPrice' },
+    //         { header: 'IsActive', key: 'IsActive' },
+    //         { header: 'LoanRequired', key: 'LoanRequired' },
+    //         { header: 'utm_id', key: 'utm_id' },
+    //         { header: 'utm_source', key: 'utm_source' },
+    //         { header: 'utm_medium', key: 'utm_medium' },
+    //         { header: 'utm_campaign', key: 'utm_campaign' },
+    //         { header: 'utm_term', key: 'utm_term' },
+    //         { header: 'utm_content', key: 'utm_content' },
+    //         { header: 'Destination', key: 'Destination' },
+    //         { header: 'Medium', key: 'Medium' },
+    //         { header: 'Campaign', key: 'Campaign' },
+    //         { header: 'learningInstitute_status', key: 'learningInstitute_status' },
+    //         { header: 'classExtension_status', key: 'classExtension_status' },
+    //         { header: 'openDemat_status', key: 'openDemat_status' },
+    //         { header: 'openDemat_option', key: 'openDemat_option' },
+    //         { header: 'classExtenion_option', key: 'classExtenion_option' },
+    //         { header: 'learningInstitute_option', key: 'learningInstitute_option' },
+    //         { header: 'inspectionDate', key: 'inspectionDate' },
+    //         { header: 'Course_Id', key: 'Course_Id' },
+    //         { header: 'Center_Id', key: 'Center_Id' }
+    //     ];
+
+    //     // Add rows to the worksheet
+    //     leadsData.forEach(lead => {
+    //         worksheet.addRow(lead);
+    //     });
+
+    //     // Save the workbook to a file
+    //     const filePath = path.join(__dirname, 'LeadsExport.xlsx');
+    //     await workbook.xlsx.writeFile(filePath);
+
+    //     // Send the file as a response
+    //     res.download(filePath, 'LeadsExport.xlsx', (err) => {
+    //         if (err) {
+    //             console.error('Error sending the file:', err);
+    //             res.status(500).json({ message: 'Error sending the file' });
+    //         } else {
+    //             // Optionally delete the file after sending it
+    //             fs.unlink(filePath, (err) => {
+    //                 if (err) console.error('Error deleting the file:', err);
+    //             });
+    //         }
+    //     });
+
+    // } catch (error) {
+    //     console.error('Error exporting leads to Excel:', error);
+    //     res.status(500).json({ message: 'Internal server error' });
+    // }
+    // },
+
+
 
   
 };
