@@ -1174,7 +1174,7 @@ DropDownList: async (req, res) => {
     const vehicleBrands = await query('SELECT Brand_Id, Brand_Name FROM Vehicle_Brand WHERE IsActive = 1'); 
 
     // Fetch Vehicle Models (Batches)
-    const vehicleModels = await query('SELECT Model_Id, Model_Name, Brand_Id FROM Vehicle_Model_copy WHERE IsActive = 1'); 
+    const vehicleModels = await query('SELECT Model_Id, Model_Name, Brand_Id FROM Vehicle_Model WHERE IsActive = 1'); 
 
     // Fetch Stage Master Data
     const stages = await query('SELECT * FROM Stage_Master WHERE Stage_Active_Status = 1');
