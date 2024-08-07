@@ -9,7 +9,9 @@ const {
   getTotalLeadData,
   getPaymentSummaryData,
   addLeadPayment,
-  updateLead
+  updateLead,
+  DropDownList,
+  // exportLeadsToExcel
 } = require("../../../controllers/LMS/v3/lms_controller");
 
 router.get("/read", readLmsv3);
@@ -22,5 +24,7 @@ router.post("/get-payment-summary-data", getPaymentSummaryData);
 router.post("/add-new-payment", addNewPayment);
 router.post("/add-lead-payment", addLeadPayment);
 router.post("/update", updateLead);
+router.get("/get-all-dropdowns", DropDownList);
+// router.post("/export", exportLeadsToExcel);
 
 module.exports = router;

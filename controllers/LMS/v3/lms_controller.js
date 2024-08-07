@@ -1159,6 +1159,128 @@ updateLead : async (req, res) => {
   }
 },
 
+DropDownList: async (req, res) => {
+  try {
+    // Fetch Centers
+    const centers = await query('SELECT id, center_name FROM Center_Master WHERE isActive = 1'); 
+
+    // Fetch Users
+    const users = await query('SELECT UserId, UserName, Center_Id FROM User WHERE UserStatus = 1'); 
+
+    // Fetch Lead Sources
+    const leadSources = await query('SELECT LeadSourceId, Source_Name, Category, Active FROM LeadSource_Master WHERE Active = 1'); 
+
+    // Fetch Vehicle Brands (Courses)
+    const vehicleBrands = await query('SELECT Brand_Id, Brand_Name FROM Vehicle_Brand WHERE IsActive = 1'); 
+
+    // Fetch Vehicle Models (Batches)
+    const vehicleModels = await query('SELECT Model_Id, Model_Name, Brand_Id FROM Vehicle_Model_copy WHERE IsActive = 1'); 
+
+    // Fetch Stage Master Data
+    const stages = await query('SELECT * FROM Stage_Master WHERE Stage_Active_Status = 1');
+
+    // Filter Payment Modes and Numbers
+    const paymentModes = stages.filter(stage => stage.Stage_Category === 'Payment Mode');
+    const paymentNumbers = stages.filter(stage => stage.Stage_Category === 'Payment Number');
+
+    // Define Lead Status IDs
+    const leadStatusMainIds = [10, 11, 14, 15, 16];
+
+    // Filter Lead Statuses
+    const leadStatuses = stages.filter(stage => stage.Stage_Category === 'LEAD' && leadStatusMainIds.includes(stage.Stage_Master_Id));
+    const leadStatusChildren = stages.filter(stage => stage.Stage_Category === 'LEAD' && !leadStatusMainIds.includes(stage.Stage_Master_Id));
+
+    // Create a map to group users by Center_Id
+    const usersByCenterId = users.reduce((acc, user) => {
+      if (!acc[user.Center_Id]) {
+        acc[user.Center_Id] = [];
+      }
+      acc[user.Center_Id].push({
+        id: user.UserId,
+        name: user.UserName
+      });
+      return acc;
+    }, {});
+
+    // Create a map to group vehicle models by Brand_Id
+    const modelsByBrandId = vehicleModels.reduce((acc, model) => {
+      if (!acc[model.Brand_Id]) {
+        acc[model.Brand_Id] = [];
+      }
+      acc[model.Brand_Id].push({
+        id: model.Model_Id,
+        parentId: model.Brand_Id,
+        name: model.Model_Name
+      });
+      return acc;
+    }, {});
+
+    // Create a map for Payment Modes and Payment Numbers
+    const paymentModesWithNumbers = paymentModes.map(mode => ({
+      id: mode.Stage_Master_Id,
+      name: mode.Stage_Name,
+      numbers: paymentNumbers.filter(number => number.Stage_Parent_Id == mode.Stage_Master_Id)
+        .map(number => ({
+          id: number.Stage_Master_Id,
+          name: number.Stage_Name,
+          parentId: mode.Stage_Master_Id
+        }))
+    }));
+
+    // Create a map for Lead Statuses and Lead Status Children
+    const leadStatusArr = leadStatuses.map(status => ({
+      id: status.Stage_Master_Id,
+      name: status.Stage_Name
+    }));
+
+    const leadStatusChildArr = leadStatusChildren.map(child => ({
+      id: child.Stage_Master_Id,
+      name: child.Stage_Name,
+      parentId: child.Stage_Parent_Id
+    }));
+
+    // Format the data
+    const formattedData = {
+      "centerUser": centers.map(center => ({
+        centerName: center.center_name,
+        centerId: center.id,
+        users: usersByCenterId[center.id] || []
+      })),
+      "leadSource": leadSources.map(leadSource => ({
+        id: leadSource.LeadSourceId,
+        name: leadSource.Source_Name,
+        // Category: leadSource.Category,
+        // Active: leadSource.Active
+      })),
+      "courses": vehicleBrands.map(brand => ({
+        id: brand.Brand_Id,
+        name: brand.Brand_Name
+      })),
+      "batches": vehicleModels.map(model => ({
+        id: model.Model_Id,
+        parentId: model.Brand_Id,
+        name: model.Model_Name
+      })),
+      "paymentModes": paymentModesWithNumbers.map(mode => ({
+        id: mode.id,
+        name: mode.name
+      })),
+      "paymentNumbers": paymentModesWithNumbers.flatMap(mode => mode.numbers),
+      "leadStatus": leadStatusArr,
+      "leadStatusChild": leadStatusChildArr
+    };
+
+    // Send the response
+    res.json({
+      success: true,
+      data: formattedData
+    });
+  } catch (error) {
+    console.error('Error fetching dropdown data:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+},
+
     // exportLeadsToExcel: async (req, res) => {
     //   try {
     //     const { startDate, endDate } = req.body;
