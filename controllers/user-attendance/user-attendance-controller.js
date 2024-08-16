@@ -106,9 +106,9 @@ async function getLeadCountByDateAndUser(date, userId, checkIn, checkOut) {
 
 module.exports = {
   postUserAttendance: async (req, res) => {
-    const { UserId, CheckIn, CheckInAddress } = req.body;
+    const { UserId, CheckIn, CheckInAddress, Latitude, Longitude } = req.body;
   
-    if (!UserId || !CheckIn || !CheckInAddress) {
+    if (!UserId || !CheckIn) {
       return failure(res, "Missing required fields");
     }
   
@@ -133,10 +133,10 @@ module.exports = {
   
       // If no record exists, proceed to insert the new attendance record
       const insertSql = `
-        INSERT INTO UserAttendance (UserId, CheckIn, CheckInAddress)
-        VALUES (?, ?, ?)
+        INSERT INTO UserAttendance (UserId, CheckIn, CheckInAddress,Latitude, Longitude )
+        VALUES (?, ?, ?,?,?)
       `;
-      const result = await query(insertSql, [UserId, CheckIn, CheckInAddress]);
+      const result = await query(insertSql, [UserId, CheckIn, CheckInAddress,Latitude, Longitude]);
   
       return created(res, "Attendance record created", result);
     } catch (err) {
@@ -229,6 +229,9 @@ module.exports = {
                 checkedIn: null,
                 checkedOut: null,
                 duration: null,
+                CheckInAddress: null,
+                Latitude: null,
+                Longitude: null,
                 history: []
             });
             return success(res, "No attendance data found for the given filters", userAttendances);
@@ -239,7 +242,7 @@ module.exports = {
 
             // Get current attendance for the user
             const currentSql = `
-                SELECT UserId, DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
+                SELECT UserId, DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration, CheckInAddress, Latitude, Longitude
                 FROM UserAttendance
                 WHERE UserId = ? AND DATE(CreatedOn) = CURDATE()
             `;
@@ -250,7 +253,10 @@ module.exports = {
                 date: null,
                 checkedIn: null,
                 checkedOut: null,
-                duration: null
+                duration: null,
+                CheckInAddress: null,
+                Latitude: null,
+                Longitude: null
             };
 
             if (currentResult.length > 0) {
@@ -259,13 +265,16 @@ module.exports = {
                     date: currentResult[0].date,
                     checkedIn: currentResult[0].CheckIn,
                     checkedOut: currentResult[0].CheckOut,
-                    duration: currentResult[0].Duration
+                    duration: currentResult[0].Duration,
+                    CheckInAddress: currentResult[0].CheckInAddress,
+                    Latitude: currentResult[0].Latitude,
+                    Longitude: currentResult[0].Longitude
                 };
             }
 
             // Get attendance history for the user between startDate and endDate
             const historySql = `
-                SELECT DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration
+                SELECT DATE_FORMAT(CreatedOn, '%Y-%m-%d') as date, CheckIn, CheckOut, Duration, CheckInAddress, Latitude, Longitude
                 FROM UserAttendance
                 WHERE UserId = ? AND DATE(CreatedOn) BETWEEN ? AND ?
                 ORDER BY CreatedOn DESC
@@ -287,7 +296,10 @@ module.exports = {
                         checkedIn: record.CheckIn,
                         checkedOut: record.CheckOut,
                         leadData,
-                        duration: record.Duration
+                        duration: record.Duration,
+                        CheckInAddress: record.CheckInAddress,
+                        Latitude: record.Latitude,
+                        Longitude: record.Longitude
                     });
                 }
             } else {
@@ -297,7 +309,10 @@ module.exports = {
                     checkedIn: null,
                     checkedOut: null,
                     leadData: null,
-                    duration: null
+                    duration: null,
+                    CheckInAddress: null,
+                    Latitude: null,
+                    Longitude: null
                 });
             }
 
@@ -313,6 +328,7 @@ module.exports = {
         return failure(res, "Internal Server Error");
     }
 },
+
 
 
 
