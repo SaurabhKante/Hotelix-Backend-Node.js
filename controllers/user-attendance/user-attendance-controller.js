@@ -1,7 +1,7 @@
 // const cron = require('node-cron');
 const pool = require("../../config/database");
 const util = require("util");
-const moment = require('moment-timezone');
+// const moment = require('moment-timezone');
 const query = util.promisify(pool.query).bind(pool);
 const promisePool = require("../../config/dbV2");
 
@@ -114,29 +114,29 @@ module.exports = {
   
     try {
       // Get the current date in Asia/Kolkata timezone
-      const currentDate = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
-      console.log(currentDate);
+      // const currentDate = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
+      // console.log(currentDate);
       // Combine current date with provided CheckIn time
-      const checkInTimestamp = `${currentDate} ${CheckIn}`;
+      // const checkInTimestamp = `${currentDate} ${CheckIn}`;
   
       // Check if there's already an attendance record for the user on the same date
-      const checkSql = `
-        SELECT COUNT(*) as count FROM UserAttendance
-        WHERE UserId = ? AND DATE(CreatedOn) = ?
-      `;
-      const checkResult = await query(checkSql, [UserId, currentDate]);
+      // const checkSql = `
+      //   SELECT COUNT(*) as count FROM UserAttendance
+      //   WHERE UserId = ? AND DATE(CreatedOn) = ?
+      // `;
+      // const checkResult = await query(checkSql, [UserId, currentDate]);
   
       // If a record exists, return a message saying the user has already checked in
-      if (checkResult[0].count > 0) {
-        return failure(res, "User has already checked in today");
-      }
+      // if (checkResult[0].count > 0) {
+      //   return failure(res, "User has already checked in today");
+      // }
   
       // If no record exists, proceed to insert the new attendance record
       const insertSql = `
-        INSERT INTO UserAttendance (UserId, CheckIn, CheckInAddress, CreatedOn)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO UserAttendance (UserId, CheckIn, CheckInAddress)
+        VALUES (?, ?, ?)
       `;
-      const result = await query(insertSql, [UserId, CheckIn, CheckInAddress, checkInTimestamp]);
+      const result = await query(insertSql, [UserId, CheckIn, CheckInAddress]);
   
       return created(res, "Attendance record created", result);
     } catch (err) {

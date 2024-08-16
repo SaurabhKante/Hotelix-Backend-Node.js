@@ -501,6 +501,8 @@ module.exports = {
         Discount_Amount: body.Discount_Amount || null,
         Payment_Mode: body.Payment_Mode || null,
         Payment_Number: body.Payment_Number || null,
+        Attached_file: body.Attached_file || null,
+        utr_number: body.utr_number || null,
       };
       const updateKey = [];
       const updateValue = [];
@@ -666,6 +668,8 @@ module.exports = {
           "Discount_Amount",
           "Payment_Mode",
           "Payment_Number",
+          "Attached_file",
+          "utr_number"
         ];
         const paymentValue = [
           parseInt(LeadId),
@@ -679,11 +683,13 @@ module.exports = {
           paymentData.Discount_Amount,
           paymentData.Payment_Mode,
           paymentData.Payment_Number,
+          paymentData.Attached_file,
+          paymentData.utr_number,
         ];
         await query(
           `INSERT INTO Payment_Details (${paymentKey.join(
             ","
-          )}) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+          )}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           paymentValue
         );
       }

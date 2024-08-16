@@ -94,6 +94,8 @@ module.exports = {
           BookedAmount: parseInt(body.BookedAmount) || null,
           Payment_Mode: body.Payment_Mode || null,
           Payment_Number: body.Payment_Number || null,
+          Attached_file: body.Attached_file || null,
+          utr_number: body.utr_number || null,
         };
 
         const paymentKeys = Object.keys(paymentData).filter(
