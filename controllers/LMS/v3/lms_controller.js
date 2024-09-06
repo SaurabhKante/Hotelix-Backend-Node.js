@@ -12,6 +12,102 @@ const query = util.promisify(pool.query).bind(pool);
 const { success, failure, unauthorized } = require("../../../utils/response");
 const { nextFollowUp } = require("../lms_controller");
 
+
+const getLeadCourseDetails = async (LeadIds) => {
+  try {
+    const myquery = `
+      SELECT 
+        l.LeadId,
+        lc.CourseId,
+        vb.Brand_Name AS CourseName, 
+        vb.Course_Fees,
+        lc.BatchId,
+        vm.Model_Name AS Batch_Name,
+        pd.Paid_Amount,
+        pd.Balance_Amount,
+        pd.Discount_Amount,
+        pd.Payment_Mode,
+        pd.Payment_Number,
+        pd.Created_On,
+        pd.Attached_file,
+        pd.utr_number,
+        pd.Comments
+      FROM 
+        \`Lead\` l
+      LEFT JOIN 
+        Lead_Courses lc ON l.LeadId = lc.LeadId
+      LEFT JOIN 
+        Vehicle_Brand vb ON lc.CourseId = vb.Brand_Id
+      LEFT JOIN 
+        Vehicle_Model vm ON lc.BatchId = vm.Model_Id
+      LEFT JOIN 
+        Payment_Details pd ON lc.LeadId = pd.LeadId AND lc.CourseId = pd.Course_Id
+      WHERE 
+        l.LeadId IN (${LeadIds.join(",")}) AND l.IsActive = 1 AND pd.Is_Active = 1;
+    `;
+
+    const results = await query(myquery);
+
+    // Process results to format them correctly
+    const formattedResults = results.reduce((acc, row) => {
+      // Find the lead in the accumulator
+      let lead = acc.find(lead => lead.LeadId === row.LeadId);
+      if (!lead) {
+        lead = {
+          LeadId: row.LeadId,
+          CourseDetails: []
+        };
+        acc.push(lead);
+      }
+
+      // Find the course in the lead's CourseDetails
+      let course = lead.CourseDetails.find(course => course.CourseId === row.CourseId && course.BatchId === row.BatchId);
+      if (!course) {
+        course = {
+          CourseId: row.CourseId,
+          CourseName: row.CourseName,
+          Course_Fees: row.Course_Fees,
+          BatchId: row.BatchId,
+          Batch_Name: row.Batch_Name,
+          CoursePaidAmount: 0,
+          Payments: [],  // Initialize payments array
+        };
+        lead.CourseDetails.push(course);
+      }
+
+      // Push payment details into the Payments array
+      course.Payments.push({
+        Paid_Amount: row.Paid_Amount,
+        Balance_Amount: row.Balance_Amount,
+        Discount_Amount: row.Discount_Amount,
+        Payment_Mode: row.Payment_Mode,
+        Payment_Number: row.Payment_Number,
+        Created_On: row.Created_On,
+        Attached_file: row.Attached_file,
+        utr_number: row.utr_number,
+        Comments: row.Comments,
+        BatchId: row.BatchId
+      });
+
+      // Update total paid amount for the course
+      course.CoursePaidAmount += row.Paid_Amount || 0;
+
+      return acc;
+    }, []);
+
+    console.log(`LeadCourseDetails: ${JSON.stringify(formattedResults)}`);
+    return formattedResults;
+
+  } catch (error) {
+    console.error('Error in getLeadCourseDetails:', error);
+    throw new Error('An error occurred while fetching lead course details.');
+  }
+};
+
+
+
+
+
 module.exports = {
   addLeadInBulk: async (req, res) => {
     try {
@@ -174,6 +270,10 @@ module.exports = {
 
         // Deactivate the associated payment details
         await query(`UPDATE \`Payment_Details\` SET Is_Active = 0 WHERE LeadId = ?`, [
+            leadId,
+        ]);
+
+        await query(`UPDATE \`Lead_Courses\` SET IsActive = 0 WHERE LeadId = ?`, [
             leadId,
         ]);
 
@@ -723,30 +823,30 @@ module.exports = {
 
   getPaymentSummaryData: async (req, res) => {
     try {
-      const {
-        startDate,
-        endDate,
-        Payment_Mode,
-        Payment_Number,
-        Model_Name,
-        Brand_Name,
-        CenterName,
-        CreatedBy,
-        searchData,
-        Page,
-        pageSize,
-      } = req.body;
+        const {
+            startDate,
+            endDate,
+            Payment_Mode,
+            Payment_Number,
+            Model_Name,
+            Brand_Name,
+            CenterName,
+            CreatedBy,
+            searchData,
+            Page,
+            pageSize,
+        } = req.body;
 
-      let searchQuery;
-      if (searchData) {
-        searchQuery = "LEFT";
-      } else {
-        searchQuery = "RIGHT";
-      }
+        let searchQuery;
+        if (searchData) {
+            searchQuery = "LEFT";
+        } else {
+            searchQuery = "RIGHT";
+        }
 
-      console.log(searchQuery);
+        console.log(searchQuery);
 
-      let sqlqueryPaymentLeads = `
+        let sqlqueryPaymentLeads = `
             SELECT 
                 L.LeadId, 
                 L.LeadName, 
@@ -762,197 +862,207 @@ module.exports = {
             ${searchQuery} JOIN \`Payment_Details\` AS P ON L.LeadId = P.LeadId
             LEFT JOIN \`Vehicle_Model\` AS VM ON L.Vehicle_Model_Id = VM.Model_Id
             LEFT JOIN Center_Master AS CM ON L.Center_Id = CM.id
-            WHERE 1=1 and L.IsActive=1 and P.Is_Active=1
+            WHERE 1=1 AND L.IsActive=1 AND P.Is_Active=1
         `;
 
-      const filters = [];
-      if (!searchData) {
-        if (startDate) filters.push(`P.Created_On >= '${startDate} 00:00:00'`);
-        if (endDate) filters.push(`P.Created_On <= '${endDate} 23:59:00'`);
-        if (Payment_Mode) filters.push(`P.Payment_Mode = '${Payment_Mode}'`);
-        if (Payment_Number)
-          filters.push(`P.Payment_Number = '${Payment_Number}'`);
-        if (Model_Name) filters.push(`VM.Model_Name = '${Model_Name}'`);
-        if (Brand_Name) filters.push(`VB.Brand_Name = '${Brand_Name}'`);
-        if (CenterName) filters.push(`CM.center_name = '${CenterName}'`);
-        if (CreatedBy) filters.push(`L.CreatedBy = '${CreatedBy}'`);
-        if (filters.length > 0) {
-          sqlqueryPaymentLeads += ` AND ${filters.join(" AND ")}`;
+        const filters = [];
+        if (!searchData) {
+            if (startDate) filters.push(`P.Created_On >= '${startDate} 00:00:00'`);
+            if (endDate) filters.push(`P.Created_On <= '${endDate} 23:59:00'`);
+            if (Payment_Mode) filters.push(`P.Payment_Mode = '${Payment_Mode}'`);
+            if (Payment_Number) filters.push(`P.Payment_Number = '${Payment_Number}'`);
+            if (Model_Name) filters.push(`VM.Model_Name = '${Model_Name}'`);
+            if (Brand_Name) filters.push(`VB.Brand_Name = '${Brand_Name}'`);
+            if (CenterName) filters.push(`CM.center_name = '${CenterName}'`);
+            if (CreatedBy) filters.push(`L.CreatedBy = '${CreatedBy}'`);
+            if (filters.length > 0) {
+                sqlqueryPaymentLeads += ` AND ${filters.join(" AND ")}`;
+            }
         }
-      }
 
-      sqlqueryPaymentLeads += ` GROUP BY L.LeadId ORDER BY P.Created_On DESC`;
+        sqlqueryPaymentLeads += ` GROUP BY L.LeadId ORDER BY P.Created_On DESC`;
 
-      const resultsToPaymentLead = await query(sqlqueryPaymentLeads);
+        const resultsToPaymentLead = await query(sqlqueryPaymentLeads);
 
-      let filteredResults = resultsToPaymentLead;
+        let filteredResults = resultsToPaymentLead;
 
-      if (searchData) {
-        const searchDataLower = searchData.toLowerCase();
-        filteredResults = resultsToPaymentLead.filter((lead) => {
-          const leadNameMatch =
-            lead.LeadName.toLowerCase().includes(searchDataLower);
-          const mobileNumberMatch =
-            lead.MobileNumber &&
-            lead.MobileNumber.toLowerCase().includes(searchDataLower);
-          const whatsAppNoMatch =
-            lead.WhatsAppNo &&
-            lead.WhatsAppNo.toLowerCase().includes(searchDataLower);
-          return leadNameMatch || mobileNumberMatch || whatsAppNoMatch;
-        });
-      }
+        if (searchData) {
+            const searchDataLower = searchData.toLowerCase();
+            filteredResults = resultsToPaymentLead.filter((lead) => {
+                const leadNameMatch = lead.LeadName.toLowerCase().includes(searchDataLower);
+                const mobileNumberMatch = lead.MobileNumber && lead.MobileNumber.toLowerCase().includes(searchDataLower);
+                const whatsAppNoMatch = lead.WhatsAppNo && lead.WhatsAppNo.toLowerCase().includes(searchDataLower);
+                return leadNameMatch || mobileNumberMatch || whatsAppNoMatch;
+            });
+        }
 
-      const leadIds = filteredResults.map((lead) => lead.LeadId);
+        const leadIds = filteredResults.map((lead) => lead.LeadId);
 
-      if (leadIds.length === 0) {
-        return res.json({
-          success: true,
-          message: "No data found",
-          data: {
-            Receivable: 0,
-            ReceivedAmount: 0,
-            RemainingAmount: 0,
-            GooglePayAmount: 0,
-            CashAmount: 0,
-            PhonePeAmount: 0,
-            OthersAmount: 0,
-            PaymentSummary: [],
-            totalCount: 0,
-            totalPages: 0,
-            currentPage: Page || 1,
-          },
-        });
-      }
+        if (leadIds.length === 0) {
+            return res.json({
+                success: true,
+                message: "No data found",
+                data: {
+                    Receivable: 0,
+                    ReceivedAmount: 0,
+                    RemainingAmount: 0,
+                    GooglePayAmount: 0,
+                    CashAmount: 0,
+                    PhonePeAmount: 0,
+                    OthersAmount: 0,
+                    PaymentSummary: [],
+                    totalCount: 0,
+                    totalPages: 0,
+                    currentPage: Page || 1,
+                },
+            });
+        }
 
-      let sqlqueryPaymentDetails = `
+        const leadCourseDetails = await getLeadCourseDetails(leadIds);
+
+        let queryCourseFees = `SELECT LeadId, SUM(Course_Fees) AS TotalCourseFees
+FROM (
+  SELECT LeadId, Course_Id, MAX(Course_Fees) AS Course_Fees
+  FROM Payment_Details
+  GROUP BY LeadId, Course_Id
+) AS DistinctFees
+WHERE LeadId IN (${leadIds.join(",")})
+GROUP BY LeadId`;
+  
+      const resultsCourseFees = await query(queryCourseFees);
+  
+      // Combine course fees into a dictionary for easy lookup
+      const courseFeesByLeadId = {};
+      resultsCourseFees.forEach((fee) => {
+        courseFeesByLeadId[fee.LeadId] = fee.TotalCourseFees;
+      });
+
+
+        let sqlqueryPaymentDetails = `
             SELECT * FROM \`Payment_Details\`
-            WHERE LeadId IN (${leadIds.join(",")}) and Is_Active=1
+            WHERE LeadId IN (${leadIds.join(",")}) AND Is_Active=1
             ORDER BY Created_On DESC
         `;
 
-      const resultsPaymentDetails = await query(sqlqueryPaymentDetails);
+        const resultsPaymentDetails = await query(sqlqueryPaymentDetails);
 
-      let sqlqueryPaymentModes = `
+        let sqlqueryPaymentModes = `
             SELECT P.Payment_Mode, SUM(P.Paid_Amount) AS TotalPaidAmount
             FROM \`Payment_Details\` AS P
             LEFT JOIN \`Lead\` AS L ON P.LeadId = L.LeadId
             LEFT JOIN \`Vehicle_Brand\` AS VB ON L.Course_Id = VB.Brand_Id
             LEFT JOIN \`Vehicle_Model\` AS VM ON L.Vehicle_Model_Id = VM.Model_Id
             LEFT JOIN \`Center_Master\` AS CM ON L.Center_Id = CM.id
-            WHERE P.LeadId IN (${leadIds.join(",")}) and P.Is_Active=1
+            WHERE P.LeadId IN (${leadIds.join(",")}) AND P.Is_Active=1
         `;
 
-      if (!searchData && filters.length > 0) {
-        sqlqueryPaymentModes += ` AND ${filters
-          .join(" AND ")
-          .replace(/P\./g, "")}`;
-      }
-      sqlqueryPaymentModes += ` GROUP BY P.Payment_Mode`;
+        if (!searchData && filters.length > 0) {
+            sqlqueryPaymentModes += ` AND ${filters.join(" AND ").replace(/P\./g, "")}`;
+        }
+        sqlqueryPaymentModes += ` GROUP BY P.Payment_Mode`;
 
-      const resultsPaymentModes = await query(sqlqueryPaymentModes);
+        const resultsPaymentModes = await query(sqlqueryPaymentModes);
 
-      const receivableAmount = filteredResults.reduce(
-        (total, lead) => total + lead.Course_Fees,
-        0
-      );
-      const receivedAmount = filteredResults.reduce(
-        (total, lead) => total + lead.TotalPaidAmount,
-        0
-      );
-
-      const paymentSummaryData = filteredResults.map((lead) => {
-        const paymentSummary = resultsPaymentDetails
-          .filter((payment) => payment.LeadId === lead.LeadId)
-          .map((payment) => ({
-            Created_On: payment.Created_On,
-            Payment_Mode: payment.Payment_Mode,
-            Payment_Number: payment.Payment_Number,
-            Paid_Amount: payment.Paid_Amount,
-            Balance_Amount : payment.Balance_Amount,
-            Attached_file: payment.Attached_file,
-            utr_number: payment.utr_number,
-            Comments: payment.Comments,
-          }));
-
-        const totalPaidAmountForLead = paymentSummary.reduce(
-          (total, payment) => total + payment.Paid_Amount,
-          0
+        const receivableAmount = filteredResults.reduce(
+            (total, lead) => total + lead.Course_Fees,
+            0
+        );
+        const receivedAmount = filteredResults.reduce(
+            (total, lead) => total + lead.TotalPaidAmount,
+            0
         );
 
-        return {
-          LeadId: lead.LeadId,
-          LeadName: lead.LeadName,
-          MobileNumber: lead.MobileNumber,
-          WhatsAppNo: lead.WhatsAppNo,
-          Course_Id: lead.Course_Id,
-          Course_Name: lead.Brand_Name,
-          Course_Fees: lead.Course_Fees,
-          CreatedBy: lead.CreatedBy,
-          TotalPaidAmount: totalPaidAmountForLead,
-          PaymentSummary: paymentSummary,
+        const paymentSummaryData = filteredResults.map((lead) => {
+            const paymentSummary = resultsPaymentDetails
+                .filter((payment) => payment.LeadId === lead.LeadId)
+                .map((payment) => ({
+                    Created_On: payment.Created_On,
+                    Payment_Mode: payment.Payment_Mode,
+                    Payment_Number: payment.Payment_Number,
+                    Paid_Amount: payment.Paid_Amount,
+                    Balance_Amount: payment.Balance_Amount,
+                    Attached_file: payment.Attached_file,
+                    utr_number: payment.utr_number,
+                    Comments: payment.Comments,
+                }));
+
+            const totalPaidAmountForLead = paymentSummary.reduce(
+                (total, payment) => total + payment.Paid_Amount,
+                0
+            );
+
+
+
+            return {
+                LeadId: lead.LeadId,
+                LeadName: lead.LeadName,
+                MobileNumber: lead.MobileNumber,
+                WhatsAppNo: lead.WhatsAppNo,
+                TotalPaidAmount: totalPaidAmountForLead,
+                TotalCourseFees: courseFeesByLeadId[lead.LeadId] || 0,
+                CourseDetails: leadCourseDetails.find(
+                  (details) => details.LeadId === lead.LeadId
+                )?.CourseDetails || [],
+                // PaymentSummary: paymentSummary,
+              };
+        });
+
+        const totalReceivedAmount = paymentSummaryData.reduce(
+            (total, paid) => total + paid.TotalPaidAmount,
+            0
+        );
+        const remainingAmount = receivableAmount - totalReceivedAmount;
+
+        // Aggregate sums for each payment mode
+        const paymentModeSums = {
+            GooglePayAmount: 0,
+            CashAmount: 0,
+            PhonePeAmount: 0,
+            OthersAmount: 0,
         };
-      });
 
-      const totalReceivedAmount = paymentSummaryData.reduce(
-        (total, paid) => total + paid.TotalPaidAmount,
-        0
-      );
-      const remainingAmount = receivableAmount - totalReceivedAmount;
+        resultsPaymentModes.forEach((mode) => {
+            if (mode.Payment_Mode === "Google Pay") {
+                paymentModeSums.GooglePayAmount = mode.TotalPaidAmount;
+            } else if (mode.Payment_Mode === "Cash") {
+                paymentModeSums.CashAmount = mode.TotalPaidAmount;
+            } else if (mode.Payment_Mode === "Phone Pe") {
+                paymentModeSums.PhonePeAmount = mode.TotalPaidAmount;
+            } else {
+                paymentModeSums.OthersAmount += mode.TotalPaidAmount;
+            }
+        });
 
-      // Aggregate sums for each payment mode
-      const paymentModeSums = {
-        GooglePayAmount: 0,
-        CashAmount: 0,
-        PhonePeAmount: 0,
-        OthersAmount: 0,
-      };
+        const TotalPages = Math.ceil(paymentSummaryData.length / pageSize);
+        const CurrentPage = Page || 1;
 
-      resultsPaymentModes.forEach((mode) => {
-        if (mode.Payment_Mode === "Google Pay") {
-          paymentModeSums.GooglePayAmount = mode.TotalPaidAmount;
-        } else if (mode.Payment_Mode === "Cash") {
-          paymentModeSums.CashAmount = mode.TotalPaidAmount;
-        } else if (mode.Payment_Mode === "Phone Pe") {
-          paymentModeSums.PhonePeAmount = mode.TotalPaidAmount;
-        } else {
-          paymentModeSums.OthersAmount += mode.TotalPaidAmount;
-        }
-      });
+        const paginatedData = paymentSummaryData.slice(
+            (CurrentPage - 1) * pageSize,
+            CurrentPage * pageSize
+        );
 
-      // Pagination logic
-      const totalCount = paymentSummaryData.length;
-      const totalPages = Math.ceil(totalCount / pageSize);
-      const currentPage = Page || 1;
-      const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedResults = paymentSummaryData.slice(startIndex, endIndex);
-
-      return res.json({
-        success: true,
-        message: "Fetched Successfully",
-        data: {
-          TotalCount: totalCount,
-          TotalPages: totalPages,
-          CurrentPage: currentPage,
-          Receivable: receivableAmount,
-          ReceivedAmount: totalReceivedAmount,
-          RemainingAmount: remainingAmount,
-          ...paymentModeSums,
-
-          PaymentSummary: paginatedResults,
-
-          // paginatedResults
-        },
-      });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({
-        success: false,
-        message: "Error while fetching data",
-        error: err.message,
-      });
+        return res.json({
+            success: true,
+            data: {
+                TotalCount: paymentSummaryData.length,
+                TotalPages,
+                CurrentPage,
+                Receivable: receivableAmount,
+                ReceivedAmount: totalReceivedAmount,
+                RemainingAmount: remainingAmount,
+                ...paymentModeSums,
+                PaymentSummary: paginatedData,
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching payment summary data",
+        });
     }
-  },
+},
+
 
 
   addNewPayment: async (req, res) => {
@@ -1018,6 +1128,32 @@ module.exports = {
         updateValues.push(LeadId);
   
         await query(updateLeadQuery, updateValues);
+
+        const checkLeadCoursesQuery = `
+        SELECT Id, BatchId
+        FROM Lead_Courses
+        WHERE LeadId = ? AND CourseId = ?
+      `;
+      const [leadCourse] = await query(checkLeadCoursesQuery, [LeadId, Course_Id]);
+
+      if (leadCourse) {
+        // If BatchId is different, update it
+        if (leadCourse.BatchId !== Model_Id) {
+          const updateBatchIdQuery = `
+            UPDATE Lead_Courses
+            SET BatchId = ?, UpdatedBy = ?, UpdatedAt = NOW()
+            WHERE Id = ?
+          `;
+          await query(updateBatchIdQuery, [Model_Id, CreatedBy, leadCourse.Id]);
+        }
+      } else {
+        // Insert new record into Lead_Courses if not exists
+        const insertLeadCoursesQuery = `
+          INSERT INTO Lead_Courses (LeadId, CourseId, BatchId,  AssignedBy, IsActive, UpdatedBy)
+          VALUES (?, ?, ?,  ?, 1, ?)
+        `;
+        await query(insertLeadCoursesQuery, [LeadId, Course_Id, Model_Id, CreatedBy, CreatedBy]);
+      }
   
         return success(res, "Payment details inserted successfully", {
           Payment_Details_Id: paymentResult.insertId,
@@ -1034,100 +1170,121 @@ module.exports = {
 
   addLeadPayment: async (req, res) => {
     try {
+      const {
+        LeadName,
+        MobileNumber,
+        WhatsAppNo,
+        CreatedBy,
+        CenterId,
+        CourseDetails
+      } = req.body;
+  
+      const LeadStatus = req.body.LeadStatus || 108;
+      const LeadSourceId = req.body.LeadSourceId || 30;
+  
+      // Check if a lead with the same MobileNumber already exists
+      const checkLeadQuery = `
+          SELECT LeadId FROM \`Lead\` WHERE MobileNumber = ?
+      `;
+      const existingLeads = await query(checkLeadQuery, [MobileNumber]);
+  
+      if (existingLeads.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Lead with the same MobileNumber already exists",
+          data: {
+            LeadId: existingLeads[0].LeadId
+          }
+        });
+      }
+  
+      // Insert into Lead table
+      const insertLeadQuery = `
+          INSERT INTO \`Lead\` (LeadName, MobileNumber, WhatsAppNo, CreatedBy, LeadStatus, Center_Id, LeadSourceId, AssignedTo, BookedAmount)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+      `;
+      const leadValues = [
+        LeadName,
+        MobileNumber,
+        WhatsAppNo,
+        CreatedBy,
+        LeadStatus,
+        CenterId,
+        LeadSourceId,
+        CreatedBy
+      ];
+      const leadInsertResult = await query(insertLeadQuery, leadValues);
+      const LeadId = leadInsertResult.insertId;
+  
+      // Iterate over CourseDetails to insert into Payment_Details and Lead_Courses tables
+      for (const courseDetail of CourseDetails) {
         const {
-            LeadName,
-            MobileNumber,
-            WhatsAppNo,
-            CreatedBy,
-            Course_Id,
-            Vehicle_Model_Id,
-            Course_Fees,
-            Paid_Amount,
-            Balance_Amount,
-            Attached_file,
-            utr_number,
-            Payment_Mode,
-            Payment_Number,
-            Comments,
-            CenterId,
-            Discount_Amount,
-        } = req.body;
-
-        const LeadStatus = req.body.LeadStatus || 108;
-        const LeadSourceId = req.body.LeadSourceId || 30;
-        // Check if a lead with the same MobileNumber already exists
-        const checkLeadQuery = `
-            SELECT LeadId FROM \`Lead\` WHERE MobileNumber = ?
-        `;
-        const existingLeads = await query(checkLeadQuery, [MobileNumber]);
-
-        if (existingLeads.length > 0) {
-          return res.status(400).json({
-            success: false,
-            message: "Lead with the same MobileNumber already exists",
-            data: {
-              LeadId: existingLeads[0].LeadId
-            }
-          });
-        }
-
-        // Insert into Lead table
-        const insertLeadQuery = `
-            INSERT INTO \`Lead\` (LeadName, MobileNumber, WhatsAppNo, CreatedBy, Course_Id, Vehicle_Model_Id, LeadStatus, Center_Id, LeadSourceId, AssignedTo, BookedAmount)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?,?)
-        `;
-        const leadValues = [
-            LeadName,
-            MobileNumber,
-            WhatsAppNo,
-            CreatedBy,
-            Course_Id,
-            Vehicle_Model_Id,
-            LeadStatus,
-            CenterId,
-            LeadSourceId,
-            CreatedBy,
-            Paid_Amount
-        ];
-        const leadInsertResult = await query(insertLeadQuery, leadValues);
-        const LeadId = leadInsertResult.insertId;
-
+          Course_Id,
+          Course_Fees,
+          VehicleModelId,
+          Paid_Amount,
+          Balance_Amount,
+          Discount_Amount,
+          Payment_Mode,
+          Payment_Number,
+          Attached_file,
+          utr_number,
+          Comments
+        } = courseDetail;
+  
         // Insert into Payment_Details table
         const insertPaymentQuery = `
             INSERT INTO Payment_Details (Course_Fees, Paid_Amount, Balance_Amount, Created_By, Course_Id, Attached_file, utr_number, LeadId, Payment_Mode, Payment_Number, Comments, Discount_Amount)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const paymentValues = [
-            Course_Fees,
-            Paid_Amount,
-            Balance_Amount,
-            CreatedBy,
-            Course_Id,
-            Attached_file,
-            utr_number,
-            LeadId,
-            Payment_Mode,
-            Payment_Number,
-            Comments,
-            Discount_Amount,
+          Course_Fees,
+          Paid_Amount,
+          Balance_Amount,
+          CreatedBy,
+          Course_Id,
+          Attached_file,
+          utr_number,
+          LeadId,
+          Payment_Mode,
+          Payment_Number,
+          Comments,
+          Discount_Amount
         ];
         await query(insertPaymentQuery, paymentValues);
-
-        return res.json({
-            success: true,
-            message: "Lead data added successfully",
-            data: {}
-        });
-
+  
+        // Check if an entry already exists in Lead_Courses table
+        const checkLeadCoursesQuery = `
+            SELECT Id FROM Lead_Courses WHERE LeadId = ? AND CourseId = ?
+        `;
+        const [leadCourse] = await query(checkLeadCoursesQuery, [LeadId, Course_Id]);
+  
+        if (!leadCourse) {
+          // Insert new record into Lead_Courses if not exists
+          const insertLeadCoursesQuery = `
+              INSERT INTO Lead_Courses (LeadId, CourseId, BatchId, AssignedBy, IsActive, UpdatedBy)
+              VALUES (?, ?, ?, ?, 1, ?)
+          `;
+          await query(insertLeadCoursesQuery, [LeadId, Course_Id, VehicleModelId, CreatedBy, CreatedBy]);
+        }
+      }
+  
+      return res.json({
+        success: true,
+        message: "Lead data added successfully",
+        data: {}
+      });
+  
     } catch (err) {
-        console.error(err);
-        return res.status(500).json({
-            success: false,
-            message: "Error while adding lead data",
-            error: err.message
-        });
+      console.error(err);
+      return res.status(500).json({
+        success: false,
+        message: "Error while adding lead data",
+        error: err.message
+      });
     }
-},
+  },
+  
 
 
 updateLead : async (req, res) => {
@@ -1180,7 +1337,7 @@ DropDownList: async (req, res) => {
     const stages = await query('SELECT * FROM Stage_Master WHERE Stage_Active_Status = 1');
 
     // Filter Payment Modes and Numbers
-    const paymentModes = stages.filter(stage => stage.Stage_Category === 'Payment Mode');
+    const paymentModes = stages.filter(stage => stage.Stage_Category === 'Payment Mode' && stage.Stage_Name !== "Payment Mode");
     const paymentNumbers = stages.filter(stage => stage.Stage_Category === 'Payment Number');
 
     // Define Lead Status IDs

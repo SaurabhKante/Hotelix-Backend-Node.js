@@ -479,272 +479,283 @@ module.exports = {
    */
   updateLms: async (req, res) => {
     try {
-      let LeadId = parseInt(req.params.LeadId);
-      if (
-        LeadId === undefined ||
-        LeadId === null ||
-        LeadId === " " ||
-        isNaN(LeadId)
-      ) {
-        return failure(res, "Data missing or invalid data", []);
-      }
-      let body = req.body;
+        let LeadId = parseInt(req.params.LeadId);
+        if (isNaN(LeadId)) {
+            return failure(res, "Data missing or invalid data", []);
+        }
+        let body = req.body;
 
-      const paymentData = {
-        Course_Id: body.Course_Id || null,
-        Course_Name: body.Course_Name || null,
-        Paid_Amount: body.Paid_Amount || null,
-        Balance_Amount: body.Balance_Amount || null,
-        Created_By: body.Created_By || null,
-        Comments: body.cashCollected || null,
-        Course_Fees: body.Course_Fees || null,
-        Discount_Amount: body.Discount_Amount || null,
-        Payment_Mode: body.Payment_Mode || null,
-        Payment_Number: body.Payment_Number || null,
-        Attached_file: body.Attached_file || null,
-        utr_number: body.utr_number || null,
-      };
-      const updateKey = [];
-      const updateValue = [];
-      const leadData = await query(`SELECT * FROM \`Lead\` WHERE LeadId =?`, [
-        LeadId,
-      ]);
-      if (leadData.length === 0)
-        return success(res, "No Lead found for this LeadId", []);
-      if (body.LeadName) {
-        updateKey.push("LeadName=?");
-        updateValue.push(body.LeadName);
-      }
-      if (body.Center_Id) {
-        updateKey.push("Center_Id=?");
-        updateValue.push(body.Center_Id);
-      }
-      if (body.VehicleRegistrationNumber) {
-        updateKey.push("VehicleRegistrationNumber=?");
-        updateValue.push(body.VehicleRegistrationNumber);
-      }
-      if (body.Email) {
-        updateKey.push("Email=?");
-        updateValue.push(body.Email);
-      }
-      if (body.Comments) {
-        updateKey.push("Comments=?");
-        updateValue.push(body.Comments);
-      }
-      if (body.marketKnowledge) {
-        updateKey.push("marketKnowledge=?");
-        updateValue.push(body.marketKnowledge);
-      }
-      if (body.hasDemat) {
-        updateKey.push("hasDemat=?");
-        updateValue.push(body.hasDemat);
-      }
-      if (body.NextFollowUp) {
-        updateKey.push("NextFollowUp=?");
-        var mydate = new Date(body.NextFollowUp);
-        var dbdate = mydate.toISOString().slice(0, 19).replace("T", " ");
-        updateValue.push(dbdate);
-      }
-      if (body.LeadStatus) {
-        if ([18, 19, 20, 21, 22, 23, 24, 31, 43].includes(body.LeadStatus)) {
-          updateKey.push("LeadStatus =?");
-          updateValue.push(body.LeadStatus);
-        } else {
-          updateKey.push("LeadStatus=?");
-          updateValue.push(body.LeadStatus);
+        const leadData = await query(`SELECT * FROM \`Lead\` WHERE LeadId = ?`, [LeadId]);
+        if (leadData.length === 0) {
+            return success(res, "No Lead found for this LeadId", []);
         }
-      }
-      if (body.LeadSourceId) {
-        updateKey.push("LeadSourceId=?");
-        updateValue.push(body.LeadSourceId);
-      }
-      if (body.WhatsAppNo) {
-        updateKey.push("WhatsAppNo=?");
-        updateValue.push(body.WhatsAppNo);
-      }
-      if (body.MfgYr) {
-        updateKey.push("MfgYr=?");
-        updateValue.push(body.MfgYr);
-      }
-      if (body.City) {
-        updateKey.push("City=?");
-        updateValue.push(body.City);
-      }
-      if (body.CityId) {
-        updateKey.push("CityId=?", "City=?");
-        updateValue.push(body.CityId, null);
-      }
-      if (body.VehicleModelId) {
-        updateKey.push("Vehicle_Model_Id=?");
-        updateValue.push(body.VehicleModelId);
-      }
-      if (body.DateOfBirth) {
-        updateKey.push("AgeGroup=?");
-        updateValue.push(body.DateOfBirth);
-      }
-      if (body.Profession) {
-        updateKey.push("Profession=?");
-        updateValue.push(body.Profession);
-      }
-      if (body.AnnualIncome) {
-        updateKey.push("AnnualIncome=?");
-        updateValue.push(parseInt(body.AnnualIncome));
-      }
-      if (body.Gender) {
-        updateKey.push("Gender=?");
-        updateValue.push(parseInt(body.Gender));
-      }
-      if (body.SellingPrice) {
-        updateKey.push("SellingPrice=?");
-        updateValue.push(parseInt(body.SellingPrice));
-      }
-      if (body.BookedAmount) {
-        updateKey.push("BookedAmount=?");
-        updateValue.push(parseInt(body.BookedAmount));
-      }
-      if (body.LeadTypeId) {
-        updateKey.push("LeadTypeId=?");
-        updateValue.push(parseInt(body.LeadTypeId));
-      }
-      if (body.loanRequired) {
-        updateKey.push("LoanRequired=?");
-        updateValue.push(parseInt(body.loanRequired));
-      }
-      if (body.VehicleProfile) {
-        updateKey.push("Vehicle_Profile=?");
-        updateValue.push(parseInt(body.VehicleProfile));
-      }
-      if (body.Course_Id) {
-        updateKey.push("Course_Id=?");
-        updateValue.push(body.Course_Id);
-      }
-      if (body.inspectionDate) {
-        updateKey.push("inspectionDate=?");
-        updateValue.push(body.inspectionDate);
-      }
-      if (body.learningOption === "NO") {
-        updateKey.push(
-          "learningInstitute_status=?",
-          "learningInstitute_option=?"
-        );
-        updateValue.push(null, "NO");
-      } else {
-        if (body.learningInstitute_status) {
-          updateKey.push(
-            "learningInstitute_status=?",
-            "learningInstitute_option=?"
-          );
-          updateValue.push(body.learningInstitute_status, "YES");
-        }
-      }
-      if (body.classOption === "NO") {
-        updateKey.push("classExtension_status=?", "classExtenion_option=?");
-        updateValue.push(null, "NO");
-      } else {
-        if (body.classExtension_status) {
-          updateKey.push("classExtension_status=?", "classExtenion_option=?");
-          updateValue.push(body.classExtension_status, "YES");
-        }
-      }
-      if (body.dematOption === "NO") {
-        updateKey.push("openDemat_status=?", "openDemat_option=?");
-        updateValue.push(null, "NO");
-      } else {
-        if (body.openDemat_status) {
-          updateKey.push("openDemat_status=?", "openDemat_option=?");
-          updateValue.push(body.openDemat_status, "YES");
-        }
-      }
-      if (paymentData.Payment_Mode !== null) {
-        const paymentKey = [
-          "LeadId",
-          "Course_Id",
-          "Course_Name",
-          "Paid_Amount",
-          "Balance_Amount",
-          "Created_By",
-          "Comments",
-          "Course_Fees",
-          "Discount_Amount",
-          "Payment_Mode",
-          "Payment_Number",
-          "Attached_file",
-          "utr_number"
-        ];
-        const paymentValue = [
-          parseInt(LeadId),
-          paymentData.Course_Id,
-          paymentData.Course_Name,
-          paymentData.Paid_Amount,
-          paymentData.Balance_Amount,
-          paymentData.Created_By,
-          paymentData.Comments,
-          paymentData.Course_Fees,
-          paymentData.Discount_Amount,
-          paymentData.Payment_Mode,
-          paymentData.Payment_Number,
-          paymentData.Attached_file,
-          paymentData.utr_number,
-        ];
-        await query(
-          `INSERT INTO Payment_Details (${paymentKey.join(
-            ","
-          )}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          paymentValue
-        );
-      }
 
-      const user_id = req.headers.USERID;
-      if (body.leadStatus === "43" || leadData[0].LeadStatus === 43) {
-        updateKey.push("AssignedTo=?");
+        const updateKey = [];
+        const updateValue = [];
+
+        if (body.LeadName) {
+            updateKey.push("LeadName = ?");
+            updateValue.push(body.LeadName);
+        }
+        if (body.Center_Id) {
+            updateKey.push("Center_Id = ?");
+            updateValue.push(body.Center_Id);
+        }
+        if (body.VehicleRegistrationNumber) {
+            updateKey.push("VehicleRegistrationNumber = ?");
+            updateValue.push(body.VehicleRegistrationNumber);
+        }
+        if (body.Email) {
+            updateKey.push("Email = ?");
+            updateValue.push(body.Email);
+        }
+        if (body.Comments) {
+            updateKey.push("Comments = ?");
+            updateValue.push(body.Comments);
+        }
+        if (body.marketKnowledge) {
+            updateKey.push("marketKnowledge = ?");
+            updateValue.push(body.marketKnowledge);
+        }
+        if (body.hasDemat) {
+            updateKey.push("hasDemat = ?");
+            updateValue.push(body.hasDemat);
+        }
+        if (body.NextFollowUp) {
+            const dbdate = new Date(body.NextFollowUp).toISOString().slice(0, 19).replace("T", " ");
+            updateKey.push("NextFollowUp = ?");
+            updateValue.push(dbdate);
+        }
+        if (body.LeadStatus) {
+            if ([18, 19, 20, 21, 22, 23, 24, 31, 43].includes(body.LeadStatus)) {
+                updateKey.push("LeadStatus = ?");
+            } else {
+                updateKey.push("LeadStatus = ?");
+            }
+            updateValue.push(body.LeadStatus);
+        }
+        if (body.LeadSourceId) {
+            updateKey.push("LeadSourceId = ?");
+            updateValue.push(body.LeadSourceId);
+        }
+        if (body.WhatsAppNo) {
+            updateKey.push("WhatsAppNo = ?");
+            updateValue.push(body.WhatsAppNo);
+        }
+        if (body.MfgYr) {
+            updateKey.push("MfgYr = ?");
+            updateValue.push(body.MfgYr);
+        }
+        if (body.City) {
+            updateKey.push("City = ?");
+            updateValue.push(body.City);
+        }
+        if (body.CityId) {
+            updateKey.push("CityId = ?");
+            updateValue.push(body.CityId);
+        }
+        if (body.VehicleModelId) {
+            updateKey.push("Vehicle_Model_Id = ?");
+            updateValue.push(body.VehicleModelId);
+        }
+        if (body.DateOfBirth) {
+            updateKey.push("AgeGroup = ?");
+            updateValue.push(body.DateOfBirth);
+        }
+        if (body.Profession) {
+            updateKey.push("Profession = ?");
+            updateValue.push(body.Profession);
+        }
+        if (body.AnnualIncome) {
+            updateKey.push("AnnualIncome = ?");
+            updateValue.push(parseInt(body.AnnualIncome));
+        }
+        if (body.Gender) {
+            updateKey.push("Gender = ?");
+            updateValue.push(parseInt(body.Gender));
+        }
+        if (body.SellingPrice) {
+            updateKey.push("SellingPrice = ?");
+            updateValue.push(parseInt(body.SellingPrice));
+        }
+        if (body.BookedAmount) {
+            updateKey.push("BookedAmount = ?");
+            updateValue.push(parseInt(body.BookedAmount));
+        }
+        if (body.LeadTypeId) {
+            updateKey.push("LeadTypeId = ?");
+            updateValue.push(parseInt(body.LeadTypeId));
+        }
+        if (body.loanRequired) {
+            updateKey.push("LoanRequired = ?");
+            updateValue.push(parseInt(body.loanRequired));
+        }
+        if (body.VehicleProfile) {
+            updateKey.push("Vehicle_Profile = ?");
+            updateValue.push(parseInt(body.VehicleProfile));
+        }
+        if (body.inspectionDate) {
+            updateKey.push("inspectionDate = ?");
+            updateValue.push(body.inspectionDate);
+        }
+        if (body.learningOption === "NO") {
+            updateKey.push("learningInstitute_status = ?", "learningInstitute_option = ?");
+            updateValue.push(null, "NO");
+        } else if (body.learningInstitute_status) {
+            updateKey.push("learningInstitute_status = ?", "learningInstitute_option = ?");
+            updateValue.push(body.learningInstitute_status, "YES");
+        }
+        if (body.classOption === "NO") {
+            updateKey.push("classExtension_status = ?", "classExtenion_option = ?");
+            updateValue.push(null, "NO");
+        } else if (body.classExtension_status) {
+            updateKey.push("classExtension_status = ?", "classExtenion_option = ?");
+            updateValue.push(body.classExtension_status, "YES");
+        }
+        if (body.dematOption === "NO") {
+            updateKey.push("openDemat_status = ?", "openDemat_option = ?");
+            updateValue.push(null, "NO");
+        } else if (body.openDemat_status) {
+            updateKey.push("openDemat_status = ?", "openDemat_option = ?");
+            updateValue.push(body.openDemat_status, "YES");
+        }
+
+        // Process payment details for each course
+        if (body.CourseDetails && Array.isArray(body.CourseDetails)) {
+            for (const course of body.CourseDetails) {
+                const paymentData = {
+                    Course_Id: course.Course_Id || null,
+                    Course_Name: course.Course_Name || null,
+                    Paid_Amount: course.Paid_Amount || null,
+                    Balance_Amount: course.Balance_Amount || null,
+                    Created_By: body.Created_By || null,
+                    Comments: course.Comments || null,
+                    Course_Fees: course.Course_Fees || null,
+                    Discount_Amount: course.Discount_Amount || null,
+                    Payment_Mode: course.Payment_Mode || null,
+                    Payment_Number: course.Payment_Number || null,
+                    Attached_file: course.Attached_file || null,
+                    utr_number: course.utr_number || null,
+                };
+                
+                if (paymentData.Payment_Mode !== null) {
+                    const paymentKey = [
+                        "LeadId",
+                        "Course_Id",
+                        "Course_Name",
+                        "Paid_Amount",
+                        "Balance_Amount",
+                        "Created_By",
+                        "Comments",
+                        "Course_Fees",
+                        "Discount_Amount",
+                        "Payment_Mode",
+                        "Payment_Number",
+                        "Attached_file",
+                        "utr_number"
+                    ];
+                    const paymentValue = [
+                        parseInt(LeadId),
+                        paymentData.Course_Id,
+                        paymentData.Course_Name,
+                        paymentData.Paid_Amount,
+                        paymentData.Balance_Amount,
+                        paymentData.Created_By,
+                        paymentData.Comments,
+                        paymentData.Course_Fees,
+                        paymentData.Discount_Amount,
+                        paymentData.Payment_Mode,
+                        paymentData.Payment_Number,
+                        paymentData.Attached_file,
+                        paymentData.utr_number,
+                    ];
+                    await query(
+                        `INSERT INTO Payment_Details (${paymentKey.join(",")}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        paymentValue
+                    );
+                }
+
+                // Check and update Lead_Courses
+                const checkLeadCoursesQuery = `
+                    SELECT Id, BatchId
+                    FROM Lead_Courses
+                    WHERE LeadId = ? AND CourseId = ?
+                `;
+                const [leadCourse] = await query(checkLeadCoursesQuery, [parseInt(LeadId), course.Course_Id]);
+
+                if (leadCourse) {
+                    // If BatchId is different, update it
+                    if (leadCourse.BatchId !== course.VehicleModelId) {
+                        const updateBatchIdQuery = `
+                            UPDATE Lead_Courses
+                            SET BatchId = ?, UpdatedBy = ?, UpdatedAt = NOW()
+                            WHERE Id = ?
+                        `;
+                        await query(updateBatchIdQuery, [course.VehicleModelId, body.Created_By, leadCourse.Id]);
+                    }
+                } else if (course.Course_Id && course.VehicleModelId) {
+                    const leadCourseKey = [
+                        "LeadId",
+                        "CourseId",
+                        "BatchId",
+                        "AssignedBy",
+                        "UpdatedBy",
+                    ];
+                    const leadCourseValue = [
+                        parseInt(LeadId),
+                        course.Course_Id,
+                        course.VehicleModelId,
+                        body.Created_By,
+                        body.Created_By,
+                    ];
+                    await query(
+                        `INSERT INTO Lead_Courses (${leadCourseKey.join(",")}) VALUES (?,?,?,?,?)`,
+                        leadCourseValue
+                    );
+                }
+            }
+        }
+
+        // Update Lead record
+        const user_id = req.headers.USERID;
+        if (body.LeadStatus === 43 || leadData[0].LeadStatus === 43) {
+            updateKey.push("AssignedTo = ?");
+            updateValue.push(user_id);
+        }
+        updateKey.push("UpdatedBy = ?");
         updateValue.push(user_id);
-      }
-      updateKey.push("UpdatedBy=?");
-      updateValue.push(user_id);
-      updateValue.push(parseInt(LeadId));
-      let myquery = `UPDATE \`Lead\` SET ${updateKey.join(
-        ", "
-      )} WHERE LeadId=?`;
-      let result = await query(myquery, updateValue);
-      const leadHistoryKey = [
-        "LeadId",
+        updateValue.push(parseInt(LeadId));
+        const updateQuery = `UPDATE \`Lead\` SET ${updateKey.join(", ")} WHERE LeadId = ?`;
+        await query(updateQuery, updateValue);
+
+        // Insert into Lead_History
+        const leadHistoryKey = [
+            "LeadId",
         "LeadStatus",
         "Comments",
         "NextFollowUp",
         "UpdatedBy",
-      ];
-      const leadHistoryValue = [
-        parseInt(LeadId),
-        body.LeadStatus || null,
-        body.Comments || null,
-        body.NextFollowUp || null,
-        user_id,
-      ];
-      const historyData = await query(
-        `INSERT INTO \`Lead_History\` (${leadHistoryKey.join(
-          ","
-        )}) VALUES (?,?,?,?,?)`,
-        leadHistoryValue
-      );
-      let finalRes = await getLMSDataByProperty("LeadId", LeadId);
-      // console.log(myquery);
-      if (updateKey.length === 0)
-        return success(res, "No data found for updating", finalRes);
-      const userInfo = await query(`SELECT * FROM \`User\` WHERE UserId=?`, [
-        user_id,
-      ]);
-      const logStreamName =
-        "restapi-Update-LMS/" + userInfo[0].Firebase_UID + "/" + Date.now();
-      const msg = `Lead Updated By: ${JSON.stringify(
-        userInfo[0]
-      )} body:${JSON.stringify(req.body)}`;
-      PublishToCloudWatch(logGroupName, logStreamName, msg);
-      return success(res, "Lead data updated successfully", finalRes);
+        ];
+        const leadHistoryValue = [
+          parseInt(LeadId),
+          body.LeadStatus || null,
+          body.Comments || null,
+          body.NextFollowUp || null,
+          user_id,
+        ];
+        await query(
+            `INSERT INTO Lead_History (${leadHistoryKey.join(",")}) VALUES (?,?,?,?,?)`,
+            leadHistoryValue
+        );
+
+        // Response
+        return success(res, "Lead Updated Successfully.", []);
     } catch (err) {
-      console.error(err);
-      return failure(res, "Error while fetching the data", err.message);
+        console.error(err);
+        return failure(res, "Something went wrong, please try again later.", []);
     }
-  },
+},
+
   /**
    * Delete the data from the Lead table by passing mobile no in params
    * @param {Request} req
@@ -820,24 +831,26 @@ module.exports = {
         return failure(res, "Data Missing or Invalid Data", []);
       }
       let data = await query(
-        `select l.LeadId, l.LeadSourceId,lsm.Source_Name, l.ClientMasterId, clm.ClientName,l.LeadName, l.MobileNumber,l.VehicleRegistrationNumber,
-        l.Email, l.LeadTypeId,   tm.TypeName, l.CreatedOn, l.CreatedBy,u.UserName as createdByName,l.UpdatedOn, l.UpdatedBy, u2.UserName as updatedByName, 
-        l.LeadStatus, sm.Stage_Name, l.Comments, l.NextFollowUp, l.WhatsAppNo,vb.Brand_Id, vb.Brand_Name,l.Vehicle_Model_Id,vm.Model_Name, vm.Variant,l.MfgYr,  l.City,
-        l.CityId,cm.City_Name, stm.State_Id, stm.State_Name,gm.Gender,gm.GenderId,pm.ProfessionId,pm.Profession
-        from \`Lead\` l 
-        join LeadSource_Master lsm on l.LeadSourceId = lsm.LeadSourceId 
-        join Client_Master clm on l.ClientMasterId = clm.ClientMasterId 
-        join Type_Master tm on l.LeadTypeId = tm.TypeMasterId 
-        join \`User\` u on l.CreatedBy = u.UserId 
-        join \`User\` u2 on l.UpdatedBy = u2.UserId 
-        join Stage_Master sm on l.LeadStatus = sm.Stage_Master_Id 
-        left join Vehicle_Model vm on l.Vehicle_Model_Id = vm.Model_Id 
-        left join Vehicle_Brand vb on vm.Brand_Id = vb.Brand_Id 
-        left join City_Master cm on l.CityId = cm.City_Id 
+        `select l.LeadId, l.LeadSourceId, lsm.Source_Name, l.ClientMasterId, clm.ClientName, l.LeadName, l.MobileNumber,
+        l.VehicleRegistrationNumber, l.Email, l.LeadTypeId, tm.TypeName, l.CreatedOn, l.CreatedBy, u.UserName as createdByName,
+        l.UpdatedOn, l.UpdatedBy, u2.UserName as updatedByName, l.LeadStatus, sm.Stage_Name, l.Comments, l.NextFollowUp,
+        l.WhatsAppNo, l.City, l.CityId, cm.City_Name, stm.State_Id, stm.State_Name, gm.Gender, gm.GenderId, pm.ProfessionId, pm.Profession,
+        lc.CourseId as Brand_Id, vb.Brand_Name, lc.BatchId as Vehicle_Model_Id, vm.Model_Name, vm.Variant, l.MfgYr
+        from \`Lead\` l
+        join LeadSource_Master lsm on l.LeadSourceId = lsm.LeadSourceId
+        join Client_Master clm on l.ClientMasterId = clm.ClientMasterId
+        join Type_Master tm on l.LeadTypeId = tm.TypeMasterId
+        join \`User\` u on l.CreatedBy = u.UserId
+        join \`User\` u2 on l.UpdatedBy = u2.UserId
+        join Stage_Master sm on l.LeadStatus = sm.Stage_Master_Id
+        left join City_Master cm on l.CityId = cm.City_Id
         left join State_Master stm on cm.State_Id = stm.State_Id
-        left join Profession_Master pm on pm.ProfessionId=l.Profession
-        left join Gender_Master gm on gm.GenderId=l.Gender  
-        where l.LeadStatus=? and l.IsActive=1
+        left join Profession_Master pm on pm.ProfessionId = l.Profession
+        left join Gender_Master gm on gm.GenderId = l.Gender
+        left join Lead_Courses lc on l.LeadId = lc.LeadId
+        left join Vehicle_Model vm on lc.BatchId = vm.Model_Id
+        left join Vehicle_Brand vb on lc.CourseId = vb.Brand_Id
+        where l.LeadStatus = 10 and l.IsActive = 1
         order by l.LeadId DESC`,
         [status]
       );
@@ -992,36 +1005,56 @@ module.exports = {
   getFollowUp: async (req, res) => {
     try {
       let results = await query(
-        `select l.LeadId, l.LeadSourceId,lsm.Source_Name, l.ClientMasterId, clm.ClientName,l.LeadName, l.MobileNumber,l.VehicleRegistrationNumber,
-        l.Email, l.LeadTypeId,   tm.TypeName, l.CreatedOn, l.CreatedBy,u.UserName as createdByName,l.UpdatedOn, l.UpdatedBy, 
-        u2.UserName as updatedByName, l.LeadStatus, sm.Stage_Name, l.Comments, l.NextFollowUp, l.WhatsAppNo,vb.Brand_Id, vb.Brand_Name,
-        l.Vehicle_Model_Id,vm.Model_Name, vm.Variant,l.MfgYr, l.City, l.CityId,cm.City_Name, stm.State_Id, stm.State_Name,gm.GenderId,gm.Gender,pm.ProfessionId,pm.Profession
-        from \`Lead\` l 
-        join LeadSource_Master lsm on l.LeadSourceId = lsm.LeadSourceId 
-        join Client_Master clm on l.ClientMasterId = clm.ClientMasterId 
-        join Type_Master tm on l.LeadTypeId = tm.TypeMasterId 
-        join \`User\` u on l.CreatedBy = u.UserId 
-        join \`User\` u2 on l.UpdatedBy = u2.UserId 
-        join Stage_Master sm on l.LeadStatus = sm.Stage_Master_Id 
-        left join Vehicle_Model vm on l.Vehicle_Model_Id = vm.Model_Id 
-        left join Vehicle_Brand vb on vm.Brand_Id = vb.Brand_Id 
-        left join City_Master cm on l.CityId = cm.City_Id 
-        left join State_Master stm on cm.State_Id = stm.State_Id
-        left join Profession_Master pm on pm.ProfessionId=l.Profession
-        left join Gender_Master gm on gm.GenderId=l.Gender  
-        where NextFollowUp IS NOT NULL and l.IsActive=1
-        order by l.LeadId DESC `
+        `SELECT 
+          l.LeadId, l.LeadSourceId, lsm.Source_Name, l.ClientMasterId, clm.ClientName, l.LeadName, l.MobileNumber, 
+          l.VehicleRegistrationNumber, l.Email, l.LeadTypeId, tm.TypeName, l.CreatedOn, l.CreatedBy, u.UserName AS createdByName,
+          l.UpdatedOn, l.UpdatedBy, u2.UserName AS updatedByName, l.LeadStatus, sm.Stage_Name, l.Comments, l.NextFollowUp,
+          l.WhatsAppNo, l.City, l.CityId, cm.City_Name, stm.State_Id, stm.State_Name, gm.GenderId, gm.Gender, pm.ProfessionId, 
+          pm.Profession, 
+          GROUP_CONCAT(lc.CourseId) AS Brand_Ids, 
+          GROUP_CONCAT(vb.Brand_Name) AS Brand_Names, 
+          GROUP_CONCAT(lc.BatchId) AS Vehicle_Model_Ids, 
+          GROUP_CONCAT(vm.Model_Name) AS Model_Names,
+          vm.Variant, l.MfgYr
+        FROM \`Lead\` l 
+        JOIN LeadSource_Master lsm ON l.LeadSourceId = lsm.LeadSourceId 
+        JOIN Client_Master clm ON l.ClientMasterId = clm.ClientMasterId 
+        JOIN Type_Master tm ON l.LeadTypeId = tm.TypeMasterId 
+        JOIN \`User\` u ON l.CreatedBy = u.UserId 
+        JOIN \`User\` u2 ON l.UpdatedBy = u2.UserId 
+        JOIN Stage_Master sm ON l.LeadStatus = sm.Stage_Master_Id 
+        LEFT JOIN Lead_Courses lc ON l.LeadId = lc.LeadId 
+        LEFT JOIN Vehicle_Model vm ON lc.BatchId = vm.Model_Id 
+        LEFT JOIN Vehicle_Brand vb ON lc.CourseId = vb.Brand_Id 
+        LEFT JOIN City_Master cm ON l.CityId = cm.City_Id 
+        LEFT JOIN State_Master stm ON cm.State_Id = stm.State_Id
+        LEFT JOIN Profession_Master pm ON pm.ProfessionId = l.Profession
+        LEFT JOIN Gender_Master gm ON gm.GenderId = l.Gender  
+        WHERE l.NextFollowUp IS NOT NULL AND l.IsActive = 1
+        GROUP BY l.LeadId
+        ORDER BY l.LeadId DESC`
       );
-      if (!results) {
+  
+      if (!results || results.length === 0) {
         return success(res, "No data Found", []);
       }
-
+  
+      // Parse concatenated fields into arrays
+      results = results.map(result => ({
+        ...result,
+        Brand_Ids: result.Brand_Ids ? result.Brand_Ids.split(",") : [],
+        Brand_Names: result.Brand_Names ? result.Brand_Names.split(",") : [],
+        Vehicle_Model_Ids: result.Vehicle_Model_Ids ? result.Vehicle_Model_Ids.split(",") : [],
+        Model_Names: result.Model_Names ? result.Model_Names.split(",") : [],
+      }));
+  
       return success(res, "follow up", results);
     } catch (err) {
       console.error(err);
-      failure(res, "Error while fetching the date", err.message);
+      return failure(res, "Error while fetching the data", err.message);
     }
   },
+  
   /**
    * Follow Up a/c to date
    * @param {*} req
@@ -1032,49 +1065,70 @@ module.exports = {
     try {
       let date = req.params.date;
       var mydate = new Date(date);
-      var day = 60 * 60 * 24 * 1000 * 1.229;
-      var day1 = 60 * 60 * 24 * 1000;
+      var day = 60 * 60 * 24 * 1000 * 1.229; // Adjusted day calculation (1.229 days)
+      var day1 = 60 * 60 * 24 * 1000; // One day in milliseconds
       mydate = new Date(mydate.getTime() + day);
       var dbdate = mydate.toISOString().slice(0, 19).replace("T", " ");
       var previousDate = new Date(mydate.getTime() - day1);
       var pDate = previousDate.toISOString().slice(0, 19).replace("T", " ");
       console.log(dbdate, pDate);
+  
       let results = await query(
-        `select l.LeadId, l.LeadSourceId,lsm.Source_Name, l.ClientMasterId, clm.ClientName,l.LeadName, l.MobileNumber,l.VehicleRegistrationNumber,
-        l.Email, l.LeadTypeId,   tm.TypeName, l.CreatedOn, l.CreatedBy,u.UserName as createdByName,l.UpdatedOn, l.UpdatedBy, u2.UserName as updatedByName, 
-        l.LeadStatus, sm.Stage_Name, l.Comments, l.NextFollowUp, l.WhatsAppNo,vb.Brand_Id, vb.Brand_Name,l.Vehicle_Model_Id,vm.Model_Name, vm.Variant,l.MfgYr,  l.City,
-        l.CityId,cm.City_Name, stm.State_Id, stm.State_Name,gm.Gender,gm.GenderId,pm.ProfessionId,pm.Profession
-        from \`Lead\` l 
-        join LeadSource_Master lsm on l.LeadSourceId = lsm.LeadSourceId 
-        join Client_Master clm on l.ClientMasterId = clm.ClientMasterId 
-        join Type_Master tm on l.LeadTypeId = tm.TypeMasterId 
-        join \`User\` u on l.CreatedBy = u.UserId 
-        join \`User\` u2 on l.UpdatedBy = u2.UserId 
-        join Stage_Master sm on l.LeadStatus = sm.Stage_Master_Id 
-        left join Vehicle_Model vm on l.Vehicle_Model_Id = vm.Model_Id 
-        left join Vehicle_Brand vb on vm.Brand_Id = vb.Brand_Id 
-        left join City_Master cm on l.CityId = cm.City_Id 
-        left join State_Master stm on cm.State_Id = stm.State_Id
-        left join Profession_Master pm on pm.ProfessionId=l.Profession
-        left join Gender_Master gm on gm.GenderId=l.Gender  
-        where l.NextFollowUp <=? && l.NextFollowUp >=? and l.IsActive=1
-        order by l.LeadId DESC`,
+        `SELECT 
+          l.LeadId, l.LeadSourceId, lsm.Source_Name, l.ClientMasterId, clm.ClientName, l.LeadName, l.MobileNumber,
+          l.VehicleRegistrationNumber, l.Email, l.LeadTypeId, tm.TypeName, l.CreatedOn, l.CreatedBy, u.UserName AS createdByName,
+          l.UpdatedOn, l.UpdatedBy, u2.UserName AS updatedByName, l.LeadStatus, sm.Stage_Name, l.Comments, l.NextFollowUp, l.WhatsAppNo,
+          GROUP_CONCAT(lc.CourseId) AS Brand_Id, GROUP_CONCAT(vb.Brand_Name) AS Brand_Name,
+          GROUP_CONCAT(lc.BatchId) AS Vehicle_Model_Id, GROUP_CONCAT(vm.Model_Name) AS Model_Name,
+          vm.Variant, l.MfgYr, l.City, l.CityId, cm.City_Name, stm.State_Id, stm.State_Name, 
+          gm.Gender, gm.GenderId, pm.ProfessionId, pm.Profession
+        FROM \`Lead\` l 
+        JOIN LeadSource_Master lsm ON l.LeadSourceId = lsm.LeadSourceId 
+        JOIN Client_Master clm ON l.ClientMasterId = clm.ClientMasterId 
+        JOIN Type_Master tm ON l.LeadTypeId = tm.TypeMasterId 
+        JOIN \`User\` u ON l.CreatedBy = u.UserId 
+        JOIN \`User\` u2 ON l.UpdatedBy = u2.UserId 
+        JOIN Stage_Master sm ON l.LeadStatus = sm.Stage_Master_Id 
+        LEFT JOIN Lead_Courses lc ON l.LeadId = lc.LeadId 
+        LEFT JOIN Vehicle_Model vm ON lc.BatchId = vm.Model_Id 
+        LEFT JOIN Vehicle_Brand vb ON lc.CourseId = vb.Brand_Id 
+        LEFT JOIN City_Master cm ON l.CityId = cm.City_Id 
+        LEFT JOIN State_Master stm ON cm.State_Id = stm.State_Id
+        LEFT JOIN Profession_Master pm ON pm.ProfessionId = l.Profession
+        LEFT JOIN Gender_Master gm ON gm.GenderId = l.Gender  
+        WHERE l.NextFollowUp <= ? AND l.NextFollowUp >= ? AND l.IsActive = 1
+        GROUP BY l.LeadId
+        ORDER BY l.LeadId DESC`,
         [dbdate, pDate]
       );
-      if (!results) {
+  
+      if (!results || results.length === 0) {
         return success(res, "No data Found", []);
       }
+  
+      // Parse concatenated fields into arrays
+      results = results.map(result => ({
+        ...result,
+        Brand_Ids: result.Brand_Id ? result.Brand_Id.split(",") : [],
+        Brand_Names: result.Brand_Name ? result.Brand_Name.split(",") : [],
+        Vehicle_Model_Ids: result.Vehicle_Model_Id ? result.Vehicle_Model_Id.split(",") : [],
+        Model_Names: result.Model_Name ? result.Model_Name.split(",") : [],
+      }));
+  
+      // Handling for CityId being null
       for (let i of results) {
         if (i["CityId"] == null) {
           i["State_Name"] = "Others";
         }
       }
+  
       return success(res, "Lead A/c to follow up", results);
     } catch (err) {
       console.error(err);
-      failure(res, "Error while fetching the list status", err.message);
+      return failure(res, "Error while fetching the list status", err.message);
     }
   },
+  
   /**
    * Search a/c to text
    * @param {Request} req
@@ -2032,13 +2086,13 @@ module.exports = {
       }
       const myquery = `
       WITH RankedCallLogs AS (
-        SELECT
-            cl.*,
-            ROW_NUMBER() OVER (PARTITION BY cl.LeadId ORDER BY cl.CreatedAt DESC) AS rn
-        FROM
-            Call_Logs cl
+      SELECT
+          cl.*,
+          ROW_NUMBER() OVER (PARTITION BY cl.LeadId ORDER BY cl.CreatedAt DESC) AS rn
+      FROM
+          Call_Logs cl
     )
-    select
+    SELECT
       l.LeadId,
       l.LeadSourceId,
       lsm.Source_Name,
@@ -2055,65 +2109,68 @@ module.exports = {
       tm.TypeName,
       l.CreatedOn,
       l.CreatedBy,
-      u.UserName as CreatedByName,
+      u.UserName AS CreatedByName,
       l.UpdatedBy,
-      u2.UserName as UpdatedByName,
+      u2.UserName AS UpdatedByName,
       l.AssignedTo,
-      u3.UserName as AssignedToName,
+      u3.UserName AS AssignedToName,
       l.UpdatedOn,
       l.LeadStatus,
       sm.Stage_Name,
       l.Comments,
       l.NextFollowUp,
       l.WhatsAppNo,
-      vb.Brand_Id,
-      vb.Brand_Name,
-      l.Vehicle_Model_Id,
-      vm.Model_Name,
-      vm.Variant,
+      GROUP_CONCAT(lc.CourseId) AS Brand_Ids,
+      GROUP_CONCAT(vb.Brand_Name) AS Brand_Names,
+      GROUP_CONCAT(lc.BatchId) AS Vehicle_Model_Ids,
+      GROUP_CONCAT(vm.Model_Name) AS Model_Names,
       l.MfgYr,
       l.City,
       l.CityId,
       cm.City_Name,
       stm.State_Id,
       stm.State_Name,
-      l.AgeGroup,
       pm.ProfessionId,
       pm.Profession,
-      l.AnnualIncome,
       gm.GenderId,
       gm.Gender,
       vp.Rear_Whee_ld,
       rwt.Wheel_type,
       sm.Stage_Parent_Id,
-      rcl.StartTime AS "lastCalled"
-    from
+      rcl.StartTime AS lastCalled
+    FROM
       \`Lead\` l
-      join LeadSource_Master lsm on l.LeadSourceId = lsm.LeadSourceId
-      join Client_Master clm on l.ClientMasterId = clm.ClientMasterId
-      join Type_Master tm on l.LeadTypeId = tm.TypeMasterId
-      join \`User\` u on l.CreatedBy = u.UserId
-      join \`User\` u2 on l.UpdatedBy = u2.UserId
-      left join \`User\` u3 on l.AssignedTo = u3.UserId
-      join Stage_Master sm on l.LeadStatus = sm.Stage_Master_Id
-      left join Vehicle_Model vm on l.Vehicle_Model_Id = vm.Model_Id
-      left join Vehicle_Brand vb on vm.Brand_Id = vb.Brand_Id
-      left join City_Master cm on l.CityId = cm.City_Id
-      left join State_Master stm on cm.State_Id = stm.State_Id
-      left join Profession_Master pm on pm.ProfessionId=l.Profession
-      left join Gender_Master gm on gm.GenderId=l.Gender
-      left join VehicleProfile as vp on vp.VehicleProfileId = l.Vehicle_Profile
-      left join Rear_Wheel_Type as rwt on rwt.id = vp.Rear_Whee_ld
-      LEFT JOIN RankedCallLogs rcl ON l.LeadId = rcl.LeadId AND rcl.rn = 1
-      WHERE l.LeadStatus IN (${leadDetails.join(
-        ","
-      )}) and ${whereClause} and ${roleClause} and l.IsActive=1
-      ORDER BY l.NextFollowUp ${arrange}`;
+    JOIN LeadSource_Master lsm ON l.LeadSourceId = lsm.LeadSourceId
+    JOIN Client_Master clm ON l.ClientMasterId = clm.ClientMasterId
+    JOIN Type_Master tm ON l.LeadTypeId = tm.TypeMasterId
+    JOIN \`User\` u ON l.CreatedBy = u.UserId
+    JOIN \`User\` u2 ON l.UpdatedBy = u2.UserId
+    LEFT JOIN \`User\` u3 ON l.AssignedTo = u3.UserId
+    JOIN Stage_Master sm ON l.LeadStatus = sm.Stage_Master_Id
+    LEFT JOIN Lead_Courses lc ON l.LeadId = lc.LeadId
+    LEFT JOIN Vehicle_Brand vb ON lc.CourseId = vb.Brand_Id
+    LEFT JOIN Vehicle_Model vm ON lc.BatchId = vm.Model_Id
+    LEFT JOIN City_Master cm ON l.CityId = cm.City_Id
+    LEFT JOIN State_Master stm ON cm.State_Id = stm.State_Id
+    LEFT JOIN Profession_Master pm ON pm.ProfessionId = l.Profession
+    LEFT JOIN Gender_Master gm ON gm.GenderId = l.Gender
+    LEFT JOIN VehicleProfile AS vp ON vp.VehicleProfileId = l.Vehicle_Profile
+    LEFT JOIN Rear_Wheel_Type AS rwt ON rwt.id = vp.Rear_Whee_ld
+    LEFT JOIN RankedCallLogs rcl ON l.LeadId = rcl.LeadId AND rcl.rn = 1
+    WHERE l.LeadStatus IN (${leadDetails.join(",")}) AND ${whereClause} AND ${roleClause} AND l.IsActive = 1
+    GROUP BY l.LeadId
+    ORDER BY l.NextFollowUp ${arrange}`;
       const result = await query(myquery);
 
       if (result.length == 0) {
         return success(res, "No data found", []);
       }
+      result.forEach(row => {
+        row.Brand_Ids = row.Brand_Ids ? row.Brand_Ids.split(',') : [];
+        row.Brand_Names = row.Brand_Names ? row.Brand_Names.split(',') : [];
+        row.Vehicle_Model_Ids = row.Vehicle_Model_Ids ? row.Vehicle_Model_Ids.split(',') : [];
+        row.Model_Names = row.Model_Names ? row.Model_Names.split(',') : [];
+      });
       return success(res, "Data fetched successfully", result);
     } catch (err) {
       return failure(res, "Error while processing the request", err.message);

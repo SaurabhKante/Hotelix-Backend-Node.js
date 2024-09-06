@@ -9,17 +9,99 @@ const env = process.env.env;
 const logGroupName = `gt-restapi-${env.toLowerCase()}-lms`;
 const { validate } = require("../../../utils/validateFun");
 
+
+
+const getLeadCourseDetails = async (LeadIds) => {
+  try {
+    // SQL query to get the required details
+    const myquery = `
+      SELECT 
+        l.LeadId,
+        lc.CourseId,
+        vb.Brand_Name AS CourseName, 
+        vb.Course_Fees,
+        lc.BatchId,
+        vm.Model_Name AS Batch_Name,
+        IFNULL(SUM(pd.Paid_Amount), 0) AS Total_Paid_Amount,
+        (vb.Course_Fees - IFNULL(SUM(pd.Paid_Amount), 0)) AS Remaining_Amount,
+        pd.Discount_Amount,
+        pd.Payment_Mode,
+        pd.Payment_Number
+      FROM 
+        \`Lead\` l
+      LEFT JOIN 
+        Lead_Courses lc ON l.LeadId = lc.LeadId
+      LEFT JOIN 
+        Vehicle_Brand vb ON lc.CourseId = vb.Brand_Id
+      LEFT JOIN 
+        Vehicle_Model vm ON lc.BatchId = vm.Model_Id
+      LEFT JOIN 
+        Payment_Details pd ON lc.LeadId = pd.LeadId AND lc.CourseId = pd.Course_Id
+      WHERE 
+        l.LeadId IN (?) AND l.IsActive = 1
+      GROUP BY 
+        l.LeadId, lc.CourseId, vb.Brand_Name, vb.Course_Fees, lc.BatchId, vm.Model_Name;
+    `;
+
+    // Execute the query and get the results
+    const results = await query(myquery, [LeadIds]);
+
+    // Process the results to format the output as required
+    const formattedResults = results.reduce((acc, row) => {
+      // Find the lead in the accumulator
+      let lead = acc.find(lead => lead.LeadId === row.LeadId);
+
+      // If the lead doesn't exist in the accumulator, create it
+      if (!lead) {
+        lead = {
+          LeadId: row.LeadId,
+          courses: []
+        };
+        acc.push(lead);
+      }
+
+      // Add the course details to the lead's courses array only if CourseId is not null
+      if (row.CourseId) {
+        lead.courses.push({
+          CourseId: row.CourseId,
+          CourseName: row.CourseName,
+          Course_Fees: row.Course_Fees,
+          BatchId: row.BatchId,
+          Batch_Name: row.Batch_Name,
+          Total_Paid_Amount: row.Total_Paid_Amount,
+          Remaining_Amount: row.Remaining_Amount,
+          Discount_Amount: row.Discount_Amount,
+          Payment_Mode: row.Payment_Mode,
+          Payment_Number: row.Payment_Number,
+        });
+      }
+
+      return acc;
+    }, []);
+
+    console.log(`LeadCourseDetails: ${JSON.stringify(formattedResults)}`);
+    return formattedResults;
+
+  } catch (error) {
+    console.error('Error in getLeadCourseDetails:', error);
+    throw new Error('An error occurred while fetching lead course details.');
+  }
+};
+
+
+
+
+
 module.exports = {
   addLms: async (req, res) => {
     try {
       const body = req.body;
       let UserId = req.headers.USERID;
-
+  
       // Check if a lead with the same mobile number already exists
-      const existingLeadQuery =
-        "SELECT LeadId FROM `Lead` WHERE MobileNumber = ?";
+      const existingLeadQuery = "SELECT LeadId FROM `Lead` WHERE MobileNumber = ?";
       const existingLeads = await query(existingLeadQuery, [body.MobileNumber]);
-
+  
       if (existingLeads.length > 0) {
         return res.status(500).json({
           SUCCESS: false,
@@ -27,7 +109,16 @@ module.exports = {
           DATA: {},
         });
       }
-
+  
+      // Extract the first Course_Id and Vehicle_Model_Id from CourseDetails
+      let firstCourseId = null;
+      let firstVehicleModelId = null;
+      if (Array.isArray(body.CourseDetails) && body.CourseDetails.length > 0) {
+        firstCourseId = body.CourseDetails[0].Course_Id || null;
+        firstVehicleModelId = body.CourseDetails[0].VehicleModelId || null;
+      }
+  
+      // Prepare lead data including firstCourseId and firstVehicleModelId
       const leadData = {
         LeadName: body.LeadName || null,
         MobileNumber: body.MobileNumber || null,
@@ -35,17 +126,14 @@ module.exports = {
         Email: body.Email || null,
         Comments: body.Comments || null,
         NextFollowUp: body.NextFollowUp
-          ? new Date(body.NextFollowUp)
-              .toISOString()
-              .slice(0, 19)
-              .replace("T", " ")
+          ? new Date(body.NextFollowUp).toISOString().slice(0, 19).replace("T", " ")
           : null,
         LeadStatus: body.LeadStatus || null,
         LeadSourceId: body.LeadSourceId || null,
         WhatsAppNo: body.WhatsAppNo || null,
         MfgYr: body.Education || null,
         CityId: body.CityId || null,
-        Vehicle_Model_Id: body.VehicleModelId || null,
+        Vehicle_Model_Id: firstVehicleModelId || body.VehicleModelId || null,
         AgeGroup: body.DateOfBirth || null,
         Profession: body.Profession || null,
         AnnualIncome: parseInt(body.AnnualIncome) || null,
@@ -61,61 +149,72 @@ module.exports = {
         classExtension_status: body.classExtension_status || null,
         openDemat_status: body.openDemat_status || null,
         inspectionDate: body.inspectionDate || null,
-        Course_Id: body.Course_Id || null,
         CreatedBy: body.Created_By || UserId,
         AssignedTo: body.Assigned_To || UserId,
         Center_Id: body.Center_Id,
+        Course_Id: firstCourseId || null, // Add Course_Id to lead data
       };
-
-      const leadKeys = Object.keys(leadData).filter(
-        (key) => leadData[key] !== null
-      );
-      const leadValues = Object.values(leadData).filter(
-        (value) => value !== null
-      );
-
-      const leadQuery = `INSERT INTO \`Lead\` (${leadKeys.join(
-        ","
-      )}) VALUES (${Array(leadKeys.length).fill("?").join(",")})`;
+  
+      const leadKeys = Object.keys(leadData).filter(key => leadData[key] !== null);
+      const leadValues = Object.values(leadData).filter(value => value !== null);
+  
+      const leadQuery = `INSERT INTO \`Lead\` (${leadKeys.join(",")}) VALUES (${Array(leadKeys.length).fill("?").join(",")})`;
       const leadInsertResult = await query(leadQuery, leadValues);
       const insertedLeadId = leadInsertResult.insertId; // Get the inserted LeadId
-
-      if (body.Payment_Mode !== null) {
-        const paymentData = {
-          LeadId: insertedLeadId,
-          Course_Id: body.Course_Id || null,
-          Course_Name: body.Course_Name || null,
-          Paid_Amount: body.Paid_Amount || null,
-          Balance_Amount: body.Balance_Amount || null,
-          Created_By: body.Created_By || null,
-          Comments: body.cashCollected || null,
-          Course_Fees: body.Course_Fees || null,
-          Discount_Amount: body.Discount_Amount || null,
-          BookedAmount: parseInt(body.BookedAmount) || null,
-          Payment_Mode: body.Payment_Mode || null,
-          Payment_Number: body.Payment_Number || null,
-          Attached_file: body.Attached_file || null,
-          utr_number: body.utr_number || null,
-        };
-
-        const paymentKeys = Object.keys(paymentData).filter(
-          (key) => paymentData[key] !== null
-        );
-        const paymentValues = Object.values(paymentData).filter(
-          (value) => value !== null
-        );
-
-        const paymentQuery = `INSERT INTO Payment_Details (${paymentKeys.join(
-          ","
-        )}) VALUES (${Array(paymentKeys.length).fill("?").join(",")})`;
-        await query(paymentQuery, paymentValues);
+  
+      // Insert data into Payment_Details and Lead_Course tables for each course in CourseDetails
+      if (Array.isArray(body.CourseDetails) && body.CourseDetails.length > 0) {
+        for (const course of body.CourseDetails) {
+          const paymentData = {
+            LeadId: insertedLeadId,
+            Course_Id: course.Course_Id || null,
+            Course_Name: course.Course_Name || null,
+            Paid_Amount: course.Paid_Amount || null,
+            Balance_Amount: course.Balance_Amount || null,
+            Created_By: body.Created_By || null,
+            Comments: course.Comments || null,
+            Course_Fees: course.Course_Fees || null,
+            Discount_Amount: course.Discount_Amount || null,
+            BookedAmount: parseInt(body.BookedAmount) || null,
+            Payment_Mode: course.Payment_Mode || null,
+            Payment_Number: course.Payment_Number || null,
+            Attached_file: course.Attached_file || null,
+            utr_number: course.utr_number || null,
+          };
+  
+          const paymentKeys = Object.keys(paymentData).filter(key => paymentData[key] !== null);
+          const paymentValues = Object.values(paymentData).filter(value => value !== null);
+  
+          const paymentQuery = `INSERT INTO Payment_Details (${paymentKeys.join(",")}) VALUES (${Array(paymentKeys.length).fill("?").join(",")})`;
+          await query(paymentQuery, paymentValues);
+  
+          // Insert into Lead_Course table
+          const leadCourseData = {
+            LeadId: insertedLeadId,
+            CourseId: course.Course_Id,
+            BatchId: course.VehicleModelId || null, // Assuming VehicleModelId is the BatchId
+            AssignedBy: body.Created_By || UserId,
+            IsActive: 1,
+            UpdatedBy: body.Created_By || UserId,
+          };
+  
+          const leadCourseKeys = Object.keys(leadCourseData).filter(key => leadCourseData[key] !== null);
+          const leadCourseValues = Object.values(leadCourseData).filter(value => value !== null);
+  
+          const leadCourseQuery = `INSERT INTO Lead_Courses (${leadCourseKeys.join(",")}) VALUES (${Array(leadCourseKeys.length).fill("?").join(",")})`;
+          await query(leadCourseQuery, leadCourseValues);
+        }
       }
+  
       return success(res, "Lead data added successfully", {});
     } catch (err) {
       console.error(err);
       return failure(res, "Error while adding lead data", err.message);
     }
   },
+  
+  
+  
 
   /**
    * Fetch all the data from lead table
@@ -431,16 +530,12 @@ module.exports = {
         l.Comments,
         l.NextFollowUp,
         l.WhatsAppNo,
-        vb.Brand_Id,
-        vb.Brand_Name,
-        l.Vehicle_Model_Id,
-        vm.Model_Name,
+
+
+
         vm.Variant,
         l.MfgYr,
-        CASE
-          WHEN pd.Paid_Amount = l.BookedAmount AND pd.Created_On = l.UpdatedOn THEN l.      BookedAmount
-          ELSE pd.Paid_Amount + l.BookedAmount
-          END AS Paid_Amount,
+      
         l.inspectionDate,
         l.Course_Id,
         l.learningInstitute_status,
@@ -449,11 +544,6 @@ module.exports = {
         l.learningInstitute_option,
         l.classExtenion_option,
         l.openDemat_option,
-        pd.Balance_Amount,
-        pd.Course_Fees,
-        pd.Discount_Amount,
-        pd.Payment_Mode,
-        pd.Payment_Number,
         l.City,
         l.CityId,
         cm.City_Name,
@@ -468,6 +558,12 @@ module.exports = {
         l.BookedAmount,
         l.Vehicle_Profile,
         vp.InspectionDate,
+        pd.Paid_Amount,
+    pd.Balance_Amount,
+    pd.Course_Fees,
+    pd.Discount_Amount,
+    pd.Payment_Mode,
+    pd.Payment_Number,
         SUM(
           CASE
             WHEN cl.CallType = 110
@@ -532,6 +628,38 @@ module.exports = {
       if (!results) {
         return success(res, "No data Found", {});
       }
+
+      const LeadIds = results.map(result => result.LeadId);
+
+      // Fetch course details
+      const courseDetails = await getLeadCourseDetails(LeadIds);
+
+      // Map course details to leads
+      const courseDetailsMap = {};
+      courseDetails.forEach(detail => {
+        if (!courseDetailsMap[detail.LeadId]) {
+          courseDetailsMap[detail.LeadId] = [];
+        }
+        courseDetailsMap[detail.LeadId].push(detail);
+      });
+
+      // Merge course details into lead results
+      results.forEach(result => {
+        result.courses = courseDetailsMap[result.LeadId] || [{
+          "LeadId": result.LeadId,
+                  "CourseId": null,
+                  "CourseName": null,
+                  "Course_Fees": null,
+                  "BatchId": null,
+                  "Batch_Name": null,
+                  "Total_Paid_Amount": null,
+                  "Remaining_Amount": null,
+                  "Discount_Amount": null,
+                  "Payment_Mode": null,
+                  "Payment_Number": null
+        }];
+      });
+      
 
       const TotalLedaInfo = `
       WITH RankedCallLogs AS (
