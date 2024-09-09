@@ -1549,7 +1549,194 @@ DropDownList: async (req, res) => {
     // }
     // },
 
+    getIncentiveData: async (req, res) => {
+      const { startDate, endDate, userId, page = 1, pagesize = 10 } = req.body;
+  
+      // Validate required fields
+      if (!startDate || !endDate) {
+          return res.status(400).json({ message: 'startDate and endDate are required.' });
+      }
+  
+      try {
+          // Base query to get lead information
+          let sqlQuery = `
+              SELECT 
+                  L.LeadId,
+                  L.LeadName,
+                  L.MobileNumber
+              FROM 
+                  \`Lead\` L
+              WHERE 
+                  L.LeadStatus IN (108, 109)
+                  AND L.CreatedOn BETWEEN ? AND ?
+          `;
+  
+          // Parameters for the query
+          const queryParams = [startDate, endDate];
+  
+          // Add filter for UserId if provided
+          if (userId) {
+              sqlQuery += ` AND L.AssignedTo = ?`;
+              queryParams.push(userId);
+          }
+  
+          // Execute the query to get leads
+          const leads = await query(sqlQuery, queryParams);
+  
+          // Extract LeadIds from the results
+          const leadIds = leads.map(lead => lead.LeadId);
+  
+          // Get lead count
+          const leadCount = leadIds.length;
+  
+          // If no leads found, return empty response
+          if (leadCount === 0) {
+              return res.status(200).json({
+                  SUCCESS: true,
+                  DATA: {
+                      leadCount,
+                      totalWon: [],
+                      incentiveHistory: []
+                  }
+              });
+          }
+  
+          // Get course details for the found leads
+          const courseDetails = await getLeadCourseDetails(leadIds);
+  
+          // Calculate pagination offset and limit
+          const offset = (page - 1) * pagesize;
+          const limit = pagesize;
+  
+          // Paginate TotalWon
+          const totalWon = leads
+              .slice(offset, offset + limit) // Apply pagination
+              .map(lead => {
+                  const leadCourses = courseDetails.find(course => course.LeadId === lead.LeadId);
+                  const formattedCourses = leadCourses ? leadCourses.CourseDetails.map(course => ({
+                      coursedName: course.CourseName,
+                      CourseId: course.CourseId,
+                      batchName: course.Batch_Name,
+                      BatchId: course.BatchId,
+                      RemainingAmount: course.Course_Fees - course.CoursePaidAmount  // Calculate remaining amount
+                  })) : [];
+  
+                  return {
+                      leadId: lead.LeadId,
+                      leadName: lead.LeadName,
+                      mobileNumber: lead.MobileNumber,
+                      courses: formattedCourses
+                  };
+              });
+  
+          // Fetch incentive data for the user or all users with pagination
+          let incentiveQuery = `
+              SELECT 
+                  I.UserId, 
+                  I.WonCount, 
+                  I.IncentivePerLead, 
+                  I.CreatedOn, 
+                  I.PaidIncentive, 
+                  U.UserName 
+              FROM Incentive I 
+              LEFT JOIN User U ON I.UserId = U.UserId 
+              WHERE I.IsActive = 1
+          `;
+  
+          if (userId) {
+              incentiveQuery += ` AND I.UserId = ?`;
+          }
+  
+          // Get the total count of incentives for pagination
+          const totalIncentiveCountQuery = `
+              SELECT COUNT(*) AS count
+              FROM Incentive I
+              WHERE I.IsActive = 1 ${userId ? `AND I.UserId = ?` : ''}
+          `;
+          const totalIncentiveCountResult = await query(totalIncentiveCountQuery, userId ? [userId] : []);
+          const totalIncentiveCount = totalIncentiveCountResult[0].count;
+  
+          // Apply pagination to incentive query
+          incentiveQuery += ` LIMIT ? OFFSET ?`;
+          const incentiveParams = userId ? [userId, limit, offset] : [limit, offset];
+          const insentiveHistory = await query(incentiveQuery, incentiveParams);
+  
+          // Format the incentiveHistory and format CreatedOn date
+          const incentiveHistory = insentiveHistory.map(history => ({
+              UserName: history.UserName,
+              LeadCount: history.WonCount,
+              IncentivePerLead: history.IncentivePerLead,
+              CreatedOn: moment(history.CreatedOn).format('YYYY-MM-DD HH:mm:ss'),  // Format CreatedOn
+              paidAmount: history.PaidIncentive
+          }));
+  
+          // Return the response
+          return res.status(200).json({
+              SUCCESS: true,
+              DATA: {
+                  leadCount,
+                  totalWon,
+                  incentiveHistory,
+                  pagination: {
+                      currentPage: parseInt(page, 10),
+                      pageSize: parseInt(pagesize, 10),
+                      totalRecords: totalIncentiveCount,
+                      totalPages: Math.ceil(totalIncentiveCount / pagesize)
+                  }
+              }
+          });
+  
+      } catch (error) {
+          console.error('Error in getIncentiveData:', error);
+          return res.status(500).json({ message: 'An error occurred', error });
+      }
+  },
 
+    insertIncentiveData: async (req, res) => {
+      const { userId, wonCount, incentivePerLead, createdBy } = req.body;
+  
+      // Validate required fields
+      if (!userId || !wonCount || !incentivePerLead || !createdBy) {
+          return res.status(400).json({
+              SUCCESS: false,
+              MESSAGE: "All fields are required."
+          });
+      }
+  
+      try {
+          // Calculate PaidIncentive
+          const PaidIncentive = wonCount * incentivePerLead;
+  
+          // Insert query
+          const insertQuery = `
+              INSERT INTO Incentive (UserId, WonCount, IncentivePerLead, PaidIncentive,CreatedBy) 
+              VALUES (?, ?, ?, ?,?)
+          `;
+  
+          // Execute query to insert data
+          const result = await query(insertQuery, [userId, wonCount, incentivePerLead, PaidIncentive, createdBy]);
+  
+          // Get the inserted ID
+          const insertedId = result.insertId;
+  
+          // Return success response
+          return res.status(201).json({
+              SUCCESS: true,
+              MESSAGE: "Data inserted successfully",
+              DATA: insertedId
+          });
+  
+      } catch (error) {
+          console.error('Error inserting incentive data:', error);
+          return res.status(500).json({
+              SUCCESS: false,
+              MESSAGE: "An error occurred while inserting data.",
+              ERROR: error
+          });
+      }
+  }
+  
+  
 
   
 };

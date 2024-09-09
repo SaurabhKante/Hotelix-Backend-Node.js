@@ -11,6 +11,8 @@ const {
   addLeadPayment,
   updateLead,
   DropDownList,
+  getIncentiveData,
+  insertIncentiveData,
   // exportLeadsToExcel
 } = require("../../../controllers/LMS/v3/lms_controller");
 
@@ -24,6 +26,8 @@ router.post("/get-payment-summary-data", getPaymentSummaryData);
 router.post("/add-new-payment", addNewPayment);
 router.post("/add-lead-payment", addLeadPayment);
 router.post("/update", updateLead);
+router.post("/incentive", getIncentiveData);
+router.post("/insert-incentive", insertIncentiveData);
 router.get("/get-all-dropdowns", DropDownList);
 // router.post("/export", exportLeadsToExcel);
 
