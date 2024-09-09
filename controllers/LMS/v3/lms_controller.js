@@ -1322,7 +1322,8 @@ DropDownList: async (req, res) => {
     const centers = await query('SELECT id, center_name FROM Center_Master WHERE isActive = 1'); 
 
     // Fetch Users
-    const users = await query('SELECT UserId, UserName, Center_Id FROM User WHERE UserStatus = 1'); 
+    const users = await query('SELECT UserId, UserName, RoleId, Email, Center_Id FROM User WHERE UserStatus = 1'); 
+
 
     // Fetch Lead Sources
     const leadSources = await query('SELECT LeadSourceId, Source_Name, Category, Active FROM LeadSource_Master WHERE Active = 1'); 
@@ -1354,7 +1355,9 @@ DropDownList: async (req, res) => {
       }
       acc[user.Center_Id].push({
         id: user.UserId,
-        name: user.UserName
+        name: user.UserName,
+        role: user.RoleId === 1 ? "ADMIN" : "TELECALLER",
+        email: user.Email,
       });
       return acc;
     }, {});
