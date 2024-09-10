@@ -1639,7 +1639,9 @@ DropDownList: async (req, res) => {
                   I.WonCount, 
                   I.IncentivePerLead, 
                   I.CreatedOn, 
-                  I.PaidIncentive, 
+                  I.PaidIncentive,
+                  I.InceStartDate,
+                  I. InceEndDate, 
                   U.UserName 
               FROM Incentive I 
               LEFT JOIN User U ON I.UserId = U.UserId 
@@ -1659,7 +1661,9 @@ DropDownList: async (req, res) => {
               UserName: history.UserName,
               LeadCount: history.WonCount,
               IncentivePerLead: history.IncentivePerLead,
-              CreatedOn: moment(history.CreatedOn).format('YYYY-MM-DD HH:mm:ss'),  // Format CreatedOn
+              CreatedOn: moment(history.CreatedOn).format('YYYY-MM-DD HH:mm:ss'),
+              StartDate: moment(history.InceStartDate).format('YYYY-MM-DD'),
+              EndDate: moment(history.InceEndDate).format('YYYY-MM-DD'),
               paidAmount: history.PaidIncentive
           }));
   
@@ -1687,7 +1691,7 @@ DropDownList: async (req, res) => {
   
 
     insertIncentiveData: async (req, res) => {
-      const { userId, wonCount, incentivePerLead, createdBy } = req.body;
+      const { userId, wonCount, incentivePerLead, createdBy, startDate, endDate } = req.body;
   
       // Validate required fields
       if (!userId || !wonCount || !incentivePerLead || !createdBy) {
@@ -1703,12 +1707,12 @@ DropDownList: async (req, res) => {
   
           // Insert query
           const insertQuery = `
-              INSERT INTO Incentive (UserId, WonCount, IncentivePerLead, PaidIncentive,CreatedBy) 
-              VALUES (?, ?, ?, ?,?)
+              INSERT INTO Incentive (UserId, WonCount, IncentivePerLead, PaidIncentive,CreatedBy, InceStartDate, InceEndDate) 
+              VALUES (?, ?, ?, ?,?,?,?)
           `;
   
           // Execute query to insert data
-          const result = await query(insertQuery, [userId, wonCount, incentivePerLead, PaidIncentive, createdBy]);
+          const result = await query(insertQuery, [userId, wonCount, incentivePerLead, PaidIncentive, createdBy, startDate, endDate]);
   
           // Get the inserted ID
           const insertedId = result.insertId;
