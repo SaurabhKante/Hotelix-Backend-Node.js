@@ -1571,7 +1571,7 @@ DropDownList: async (req, res) => {
                   \`Lead\` L
               WHERE 
                   L.LeadStatus IN (108, 109)
-                  AND L.CreatedOn BETWEEN ? AND ?
+                  AND L.UpdatedOn BETWEEN ? AND ?
           `;
   
           // Parameters for the query
@@ -1607,7 +1607,7 @@ DropDownList: async (req, res) => {
           // Get course details for the found leads
           const courseDetails = await getLeadCourseDetails(leadIds);
   
-          // Calculate pagination offset and limit
+          // Calculate pagination offset and limit for totalWon
           const offset = (page - 1) * pagesize;
           const limit = pagesize;
   
@@ -1632,7 +1632,7 @@ DropDownList: async (req, res) => {
                   };
               });
   
-          // Fetch incentive data for the user or all users with pagination
+          // Fetch incentive data for the user or all users without pagination
           let incentiveQuery = `
               SELECT 
                   I.UserId, 
@@ -1650,18 +1650,8 @@ DropDownList: async (req, res) => {
               incentiveQuery += ` AND I.UserId = ?`;
           }
   
-          // Get the total count of incentives for pagination
-          const totalIncentiveCountQuery = `
-              SELECT COUNT(*) AS count
-              FROM Incentive I
-              WHERE I.IsActive = 1 ${userId ? `AND I.UserId = ?` : ''}
-          `;
-          const totalIncentiveCountResult = await query(totalIncentiveCountQuery, userId ? [userId] : []);
-          const totalIncentiveCount = totalIncentiveCountResult[0].count;
-  
-          // Apply pagination to incentive query
-          incentiveQuery += ` LIMIT ? OFFSET ?`;
-          const incentiveParams = userId ? [userId, limit, offset] : [limit, offset];
+          // Execute incentive query
+          const incentiveParams = userId ? [userId] : [];
           const insentiveHistory = await query(incentiveQuery, incentiveParams);
   
           // Format the incentiveHistory and format CreatedOn date
@@ -1683,8 +1673,8 @@ DropDownList: async (req, res) => {
                   pagination: {
                       currentPage: parseInt(page, 10),
                       pageSize: parseInt(pagesize, 10),
-                      totalRecords: totalIncentiveCount,
-                      totalPages: Math.ceil(totalIncentiveCount / pagesize)
+                      totalRecords: leadCount,
+                      totalPages: Math.ceil(leadCount / pagesize)
                   }
               }
           });
@@ -1694,6 +1684,7 @@ DropDownList: async (req, res) => {
           return res.status(500).json({ message: 'An error occurred', error });
       }
   },
+  
 
     insertIncentiveData: async (req, res) => {
       const { userId, wonCount, incentivePerLead, createdBy } = req.body;
