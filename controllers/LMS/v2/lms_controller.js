@@ -825,27 +825,67 @@ GROUP BY
           }
         }
 
-        let totalPageCount = Math.ceil(searchResult.length / pageSize);
-        let pagination = {
-          totalPages: totalPageCount,
-          itemsPerPage:
-            searchResult.length < pageSize ? searchResult.length : pageSize,
-          itemsCount: searchResult.length,
-          previousPage:
-            page - 1 >= 0 && page - 1 <= totalPageCount - 1 ? page - 1 : null,
-          currentPage: page <= totalPageCount - 1 ? page : null,
-          nextPage: page + 1 <= totalPageCount - 1 ? page + 1 : null,
-          firstPage: 0,
-          lastPage: totalPageCount - 1 >= 0 ? totalPageCount - 1 : null,
-        };
-        return success(
-          res,
-          "searched result",
-          searchResult,
-          pagination,
-          countObject
-        );
-      }
+        if (searchResult.length > 0) {
+          const LeadIds = searchResult.map(result => result.LeadId);
+    
+          // Fetch course details
+          const courses = await getLeadCourseDetails(LeadIds);
+    
+          // Map course details to leads
+          const courseDetailsMap = {};
+          courseDetails.forEach(detail => {
+            courseDetailsMap[detail.LeadId] = detail.courses;
+          });
+        
+
+            searchResult.forEach(lead => {
+              lead.courses = courseDetailsMap[lead.LeadId] || [];
+            });
+    
+          let totalPageCount = Math.ceil(searchResult.length / pageSize);
+          let pagination = {
+            totalPages: totalPageCount,
+            itemsPerPage:
+              searchResult.length < pageSize ? searchResult.length : pageSize,
+            itemsCount: searchResult.length,
+            previousPage:
+              page - 1 >= 0 && page - 1 <= totalPageCount - 1 ? page - 1 : null,
+            currentPage: page <= totalPageCount - 1 ? page : null,
+            nextPage: page + 1 <= totalPageCount - 1 ? page + 1 : null,
+            firstPage: 0,
+            lastPage: totalPageCount - 1 >= 0 ? totalPageCount - 1 : null,
+          };
+    
+          return success(
+            res,
+            "Data found",
+            searchResult,
+            pagination ,
+            {
+              "10": 223,
+              "11": 1,
+              "14": 5,
+              "15": 0,
+              "16": 0
+          }
+          );
+          
+        }
+      } else {
+        // Normal data response without search filter
+        const LeadIds = results.map(lead => lead.LeadId);
+        const courseDetails = await getLeadCourseDetails(LeadIds);
+    
+        // Map course details to leads
+        const courseDetailsMap = {};
+      courseDetails.forEach(detail => {
+        courseDetailsMap[detail.LeadId] = detail.courses;
+      });
+    
+        // Add course details to paginated results
+        results.forEach(lead => {
+          lead.courses = courseDetailsMap[lead.LeadId] || [];
+        });
 
       let paginationInfo = {
         totalPages: noOfPages,
@@ -867,6 +907,7 @@ GROUP BY
         paginationInfo,
         countObject
       );
+    }
     } catch (err) {
       console.log(err);
       return failure(res, "Error while fetching the data", err.message);
