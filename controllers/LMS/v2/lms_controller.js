@@ -637,27 +637,12 @@ module.exports = {
       // Map course details to leads
       const courseDetailsMap = {};
       courseDetails.forEach(detail => {
-        if (!courseDetailsMap[detail.LeadId]) {
-          courseDetailsMap[detail.LeadId] = [];
-        }
-        courseDetailsMap[detail.LeadId].push(detail);
+        courseDetailsMap[detail.LeadId] = detail.courses;
       });
 
-      // Merge course details into lead results
-      results.forEach(result => {
-        result.courses = courseDetailsMap[result.LeadId] || [{
-          "LeadId": result.LeadId,
-                  "CourseId": null,
-                  "CourseName": null,
-                  "Course_Fees": null,
-                  "BatchId": null,
-                  "Batch_Name": null,
-                  "Total_Paid_Amount": null,
-                  "Remaining_Amount": null,
-                  "Discount_Amount": null,
-                  "Payment_Mode": null,
-                  "Payment_Number": null
-        }];
+      // Add course details to the leads in results
+      results.forEach(lead => {
+        lead.courses = courseDetailsMap[lead.LeadId] || [];
       });
       
 
