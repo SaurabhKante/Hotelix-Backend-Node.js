@@ -205,6 +205,30 @@ module.exports = {
           await query(leadCourseQuery, leadCourseValues);
         }
       }
+      if (body.Reminder_Date != null && body.Reminder_Date != undefined || body.NextFollowUp != null) {
+        const insertReminderQuery = `
+          INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CourseId, CreatedBy, SubstatusId, Comments)
+          VALUES (?, ?, ?,  ?, ?, ?, ?)
+        `;
+  
+        const courseId = body.Course_Id === 0 ? null : firstCourseId;
+        const followUpDate = body.NextFollowUp ? body.NextFollowUp : body.Reminder_Date;
+        const leadStatus = body.LeadStatus;
+        const reminderStatus = body.NextFollowUp ? body.LeadStatus : body.Reminder_Status;
+        const reminderComments = body.NextFollowUp ? body.Comments : body.Reminder_Comments;
+  
+        const reminderValues = [
+          insertedLeadId,
+          leadStatus,
+          followUpDate,
+          courseId,
+          body.Created_By || UserId,
+          reminderStatus,
+          reminderComments,
+        ];
+  
+        await query(insertReminderQuery, reminderValues);
+      }
   
       return success(res, "Lead data added successfully", {});
     } catch (err) {

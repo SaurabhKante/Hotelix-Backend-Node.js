@@ -3,6 +3,7 @@ const util = require("util");
 //util.promisify return the promise instead of call back.
 const query = util.promisify(pool.query).bind(pool);
 const promisePool = require("../../config/dbV2");
+const moment = require('moment'); 
 /**
  * For JSON response
  */
@@ -619,7 +620,7 @@ module.exports = {
             updateKey.push("openDemat_status = ?", "openDemat_option = ?");
             updateValue.push(body.openDemat_status, "YES");
         }
-
+let CourseId;
         // Process payment details for each course
         if (body.CourseDetails && Array.isArray(body.CourseDetails)) {
             for (const course of body.CourseDetails) {
@@ -673,6 +674,7 @@ module.exports = {
                         `INSERT INTO Payment_Details (${paymentKey.join(",")}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                         paymentValue
                     );
+                    CourseId = paymentData.Course_Id;
                 }
 
                 // Check and update Lead_Courses
@@ -748,6 +750,31 @@ module.exports = {
             leadHistoryValue
         );
 
+        if (body.Reminder_Date != null && body.Reminder_Date != undefined || body.NextFollowUp != null) {
+  
+
+          const insertReminderQuery = `
+                    INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CourseId, CreatedBy, SubstatusId, Comments)
+                    VALUES (?, ?, ?,  ?, ?, ?, ?)
+                `;
+    
+                const courseId = body.Course_Id === 0 ? null : body.Course_Id;
+          const followUpDate = body.NextFollowUp ? body.NextFollowUp : body.Reminder_Date;
+          const leadStatus = body.LeadStatus;
+          const reminderStatus = body.NextFollowUp ? body.LeadStatus : body.Reminder_Status;
+          const reminderComments = body.NextFollowUp ? body.Comments : body.Reminder_Comments;
+    
+            const reminderValues = [
+                    parseInt(LeadId),
+                    leadStatus,
+                    followUpDate,
+                    CourseId,
+                    body.Created_By,
+                    reminderStatus,
+                    reminderComments,
+                ];
+                await query(insertReminderQuery, reminderValues);
+    }
         // Response
         return success(res, "Lead Updated Successfully.", []);
     } catch (err) {
@@ -2061,31 +2088,217 @@ module.exports = {
         `SELECT sm.Stage_Master_Id FROM Stage_Master as sm Where sm.Stage_Parent_Id=?`,
         [11]
       );
-      let leadDetails = [];
-      leadStatusDetails.forEach((i) => {
-        leadDetails.push(i.Stage_Master_Id);
-      });
-      let whereClause;
-      if (type == "missed" || type == "Missed") {
-        whereClause = `l.NextFollowUp < "${new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace("T", " ")}"`;
-      } else if (type == "today" || type == "Today") {
-        whereClause = `l.NextFollowUp >= "${
-          new Date().toISOString().split("T")[0]
-        } 00:00:00" and l.NextFollowUp < "${
-          new Date().toISOString().split("T")[0]
-        } 23:59:59"`;
-      } else if (type == "Upcoming" || type == "upcoming") {
-        whereClause = `l.NextFollowUp>="${new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace("T", " ")}"`;
-        arrange = ``;
-      }
+      let leadDetails = leadStatusDetails.map(i => i.Stage_Master_Id);
+
+        let whereClause;
+        const now = moment().format('YYYY-MM-DD HH:mm:ss');
+        const today = moment().format('YYYY-MM-DD');
+
+        if (type.toLowerCase() === "missed") {
+            whereClause = `(lr.FollowUpDate) < "${now}"`;
+        } else if (type.toLowerCase() === "today") {
+            whereClause = `(lr.FollowUpDate) >= "${today} 00:00:00" AND (lr.FollowUpDate) < "${today} 23:59:59"`;
+        } else if (type.toLowerCase() === "upcoming") {
+            whereClause = `(lr.FollowUpDate) >= "${now}"`;
+            arrange = ``;
+        } else {
+            return failure(res, "Invalid type parameter", []);
+        }
       const myquery = `
       WITH RankedCallLogs AS (
+      SELECT
+          cl.*,
+          ROW_NUMBER() OVER (PARTITION BY cl.LeadId ORDER BY cl.CreatedAt DESC) AS rn
+      FROM
+          Call_Logs cl
+    ),
+        LatestReminder AS (
+            SELECT
+                r.*,
+                ROW_NUMBER() OVER (PARTITION BY r.LeadId ORDER BY r.CreatedAt DESC) AS rn
+            FROM
+                Reminder r
+        )
+    SELECT
+      l.LeadId,
+      l.LeadSourceId,
+      lsm.Source_Name,
+      l.ClientMasterId,
+      clm.ClientName,
+      l.LeadName,
+      l.MobileNumber,
+      l.AgeGroup,
+      l.Profession AS ProfessionId,
+      l.AnnualIncome,
+      l.VehicleRegistrationNumber,
+      l.Email,
+      l.LeadTypeId,
+      tm.TypeName,
+      l.CreatedOn,
+      l.CreatedBy,
+      u.UserName AS CreatedByName,
+      l.UpdatedBy,
+      u2.UserName AS UpdatedByName,
+      l.AssignedTo,
+      u3.UserName AS AssignedToName,
+      l.UpdatedOn,
+      l.LeadStatus,
+      smParent.Stage_Name AS Stage_Name,
+            COALESCE(lr.Comments, l.Comments) AS Comments,
+            DATE_FORMAT(lr.FollowUpDate, '%Y-%m-%d %H:%i:%s') AS NextFollowUp,
+      l.WhatsAppNo,
+       lc.CourseId AS Brand_Id,
+      vb.Brand_Name AS Brand_Name,
+      lc.BatchId AS Vehicle_Model_Id,
+      vm.Model_Name AS Model_Name,
+      l.MfgYr,
+      pd.Paid_Amount,
+    pd.Balance_Amount,
+    pd.Course_Fees,
+    pd.Discount_Amount,
+    pd.Payment_Mode,
+    pd.Payment_Number,
+    l.inspectionDate,
+l.Course_Id,
+l.learningInstitute_status,
+l.classExtension_status,
+l.openDemat_status,
+l.learningInstitute_option,
+l.classExtenion_option,
+l.openDemat_option,
+      l.City,
+      l.CityId,
+      cm.City_Name,
+      stm.State_Id,
+      stm.State_Name,
+      pm.ProfessionId,
+      pm.Profession,
+      gm.GenderId,
+      gm.Gender,
+      vp.Rear_Whee_ld,
+      rwt.Wheel_type,
+      sm.Stage_Parent_Id,
+      vp.Rear_Whee_ld AS "wheelTye",
+      0 AS COST,
+      rcl.StartTime AS lastCalled,
+      l.SellingPrice,
+      l.BookedAmount,
+      l.Vehicle_Profile,
+      lr.SubstatusId,
+      COALESCE(sm2.Stage_Name, sm.Stage_Name) AS Reason,
+      SUM(
+          CASE
+            WHEN cl.CallType = 110
+            AND cl.CallDuration = 0 THEN 1
+            ELSE 0
+          END
+        ) AS missed_calls,
+        SUM(
+          CASE
+            WHEN cl.CallType = 110
+            AND cl.CallDuration > 0 THEN 1
+            ELSE 0
+          END
+        ) AS incoming_calls,
+        SUM(
+          CASE
+            WHEN cl.CallType = 111 THEN 1
+            ELSE 0
+          END
+        ) AS outgoing_calls,
+        l.Destination,
+        l.Medium,
+        l.Campaign,
+        l.learningInstitute_option,
+        l.classExtenion_option,
+        l.openDemat_option
+    FROM
+      \`Lead\` l
+    JOIN LeadSource_Master lsm ON l.LeadSourceId = lsm.LeadSourceId
+    LEFT JOIN (
+      SELECT *
+      FROM Payment_Details pd1
+      WHERE pd1.created_on = (
+          SELECT MAX(pd2.created_on)
+          FROM Payment_Details pd2
+          WHERE pd2.LeadId = pd1.LeadId
+      )
+  ) pd ON l.LeadId = pd.LeadId
+    JOIN Client_Master clm ON l.ClientMasterId = clm.ClientMasterId
+    JOIN Type_Master tm ON l.LeadTypeId = tm.TypeMasterId
+    JOIN \`User\` u ON l.CreatedBy = u.UserId
+    JOIN \`User\` u2 ON l.UpdatedBy = u2.UserId
+    LEFT JOIN LeadSource_Master lsm1 ON l.Destination = lsm1.LeadSourceId
+    LEFT JOIN LeadSource_Master lsm2 ON l.Medium = lsm2.LeadSourceId
+    LEFT JOIN LeadSource_Master lsm3 ON l.Campaign = lsm3.LeadSourceId
+    LEFT JOIN \`User\` u3 ON l.AssignedTo = u3.UserId
+    JOIN Stage_Master sm ON l.LeadStatus = sm.Stage_Master_Id
+    JOIN Stage_Master smParent ON sm.Stage_Parent_Id = smParent.Stage_Master_Id
+    LEFT JOIN Lead_Courses lc ON l.LeadId = lc.LeadId
+    LEFT JOIN Vehicle_Brand vb ON lc.CourseId = vb.Brand_Id
+    LEFT JOIN Vehicle_Model vm ON lc.BatchId = vm.Model_Id
+    LEFT JOIN City_Master cm ON l.CityId = cm.City_Id
+    LEFT JOIN State_Master stm ON cm.State_Id = stm.State_Id
+    LEFT JOIN Profession_Master pm ON pm.ProfessionId = l.Profession
+    LEFT JOIN Gender_Master gm ON gm.GenderId = l.Gender
+    LEFT JOIN VehicleProfile AS vp ON vp.VehicleProfileId = l.Vehicle_Profile
+    LEFT JOIN RiderProfile rp ON rp.RiderProfileId = vp.RiderProfileId
+    LEFT JOIN Rear_Wheel_Type AS rwt ON rwt.id = vp.Rear_Whee_ld
+    LEFT JOIN RankedCallLogs rcl ON l.LeadId = rcl.LeadId AND rcl.rn = 1
+    LEFT JOIN LatestReminder lr ON l.LeadId = lr.LeadId AND lr.rn = 1
+            LEFT JOIN Call_Logs cl ON cl.LeadId = l.LeadId
+            LEFT JOIN Stage_Master sm2 ON lr.SubstatusId = sm2.Stage_Master_Id
+        WHERE
+            (${whereClause}) AND ${roleClause} AND l.LeadStatus NOT IN (15,25,26,27,30,37,44,107,16,10)
+        GROUP BY
+            l.LeadId
+        ORDER BY
+            lr.CreatedAt ${arrange}`;
+      const result = await query(myquery);
+
+      if (result.length == 0) {
+        return success(res, "No data found", []);
+      }
+      // result.forEach(row => {
+      //   row.Brand_Ids = row.Brand_Ids ? row.Brand_Ids.split(',') : [];
+      //   row.Brand_Names = row.Brand_Names ? row.Brand_Names.split(',') : [];
+      //   row.Vehicle_Model_Ids = row.Vehicle_Model_Ids ? row.Vehicle_Model_Ids.split(',') : [];
+      //   row.Model_Names = row.Model_Names ? row.Model_Names.split(',') : [];
+      // });
+      return success(res, "Data fetched successfully", result);
+    } catch (err) {
+      return failure(res, "Error while processing the request", err.message);
+    }
+  },
+
+
+  getFollowUpDataHistoryOfLeadId: async function (req, res) {
+    try {
+        const { LeadId } = req.params;
+        if (!LeadId) {
+            return failure(res, "LeadId parameter is required", []);
+        }
+  
+        let Userid = req.headers.USERID;
+        let role = req.headers.roleData.ADMIN || req.headers.roleData.SALES;
+        if (!role) {
+            return unauthorized(res, "You are Not Authorized to access this", []);
+        }
+  
+        let roleClause = "";
+        if (role.includes("ADMIN")) {
+            roleClause = "l.IsActive=1";
+        } else if (role.includes("TELECALLER")) {
+            roleClause = `l.AssignedTo=${Userid}`;
+        } else {
+            return unauthorized(res, "You are Not Authorized to access this", []);
+        }
+  
+        // const today = new Date().toISOString().split("T")[0];
+        const whereClause = `l.LeadId = ${LeadId}`;
+        let arrange = `DESC`;
+        const myquery = `
+        WITH RankedCallLogs AS (
       SELECT
           cl.*,
           ROW_NUMBER() OVER (PARTITION BY cl.LeadId ORDER BY cl.CreatedAt DESC) AS rn
@@ -2101,7 +2314,7 @@ module.exports = {
       l.LeadName,
       l.MobileNumber,
       l.AgeGroup,
-      l.Profession,
+      l.Profession AS ProfessionId,
       l.AnnualIncome,
       l.VehicleRegistrationNumber,
       l.Email,
@@ -2116,15 +2329,29 @@ module.exports = {
       u3.UserName AS AssignedToName,
       l.UpdatedOn,
       l.LeadStatus,
-      sm.Stage_Name,
-      l.Comments,
-      l.NextFollowUp,
+      smParent.Stage_Name AS Stage_Name,
+            COALESCE(r.Comments, l.Comments) AS Comments,
+            DATE_FORMAT(r.FollowUpDate, '%Y-%m-%d %H:%i:%s') AS NextFollowUp,
       l.WhatsAppNo,
-      GROUP_CONCAT(lc.CourseId) AS Brand_Ids,
-      GROUP_CONCAT(vb.Brand_Name) AS Brand_Names,
-      GROUP_CONCAT(lc.BatchId) AS Vehicle_Model_Ids,
-      GROUP_CONCAT(vm.Model_Name) AS Model_Names,
+      lc.CourseId AS Brand_Id,
+      vb.Brand_Name AS Brand_Name,
+      lc.BatchId AS Vehicle_Model_Id,
+      vm.Model_Name AS Model_Name,
       l.MfgYr,
+      pd.Paid_Amount,
+    pd.Balance_Amount,
+    pd.Course_Fees,
+    pd.Discount_Amount,
+    pd.Payment_Mode,
+    pd.Payment_Number,
+    l.inspectionDate,
+l.Course_Id,
+l.learningInstitute_status,
+l.classExtension_status,
+l.openDemat_status,
+l.learningInstitute_option,
+l.classExtenion_option,
+l.openDemat_option,
       l.City,
       l.CityId,
       cm.City_Name,
@@ -2137,16 +2364,62 @@ module.exports = {
       vp.Rear_Whee_ld,
       rwt.Wheel_type,
       sm.Stage_Parent_Id,
-      rcl.StartTime AS lastCalled
+      vp.Rear_Whee_ld AS "wheelTye",
+      0 AS COST,
+      rcl.StartTime AS lastCalled,
+      l.SellingPrice,
+      l.BookedAmount,
+      l.Vehicle_Profile,
+      r.SubstatusId,
+      COALESCE(sm2.Stage_Name, sm.Stage_Name) AS Reason,
+      SUM(
+          CASE
+            WHEN cl.CallType = 110
+            AND cl.CallDuration = 0 THEN 1
+            ELSE 0
+          END
+        ) AS missed_calls,
+        SUM(
+          CASE
+            WHEN cl.CallType = 110
+            AND cl.CallDuration > 0 THEN 1
+            ELSE 0
+          END
+        ) AS incoming_calls,
+        SUM(
+          CASE
+            WHEN cl.CallType = 111 THEN 1
+            ELSE 0
+          END
+        ) AS outgoing_calls,
+        l.Destination,
+        l.Medium,
+        l.Campaign,
+        l.learningInstitute_option,
+        l.classExtenion_option,
+        l.openDemat_option
     FROM
       \`Lead\` l
     JOIN LeadSource_Master lsm ON l.LeadSourceId = lsm.LeadSourceId
+    LEFT JOIN (
+      SELECT *
+      FROM Payment_Details pd1
+      WHERE pd1.created_on = (
+          SELECT MAX(pd2.created_on)
+          FROM Payment_Details pd2
+          WHERE pd2.LeadId = pd1.LeadId
+      )
+  ) pd ON l.LeadId = pd.LeadId
     JOIN Client_Master clm ON l.ClientMasterId = clm.ClientMasterId
     JOIN Type_Master tm ON l.LeadTypeId = tm.TypeMasterId
     JOIN \`User\` u ON l.CreatedBy = u.UserId
     JOIN \`User\` u2 ON l.UpdatedBy = u2.UserId
+    LEFT JOIN LeadSource_Master lsm1 ON l.Destination = lsm1.LeadSourceId
+    LEFT JOIN LeadSource_Master lsm2 ON l.Medium = lsm2.LeadSourceId
+    LEFT JOIN LeadSource_Master lsm3 ON l.Campaign = lsm3.LeadSourceId
     LEFT JOIN \`User\` u3 ON l.AssignedTo = u3.UserId
     JOIN Stage_Master sm ON l.LeadStatus = sm.Stage_Master_Id
+    JOIN Stage_Master smParent ON sm.Stage_Parent_Id = smParent.Stage_Master_Id
     LEFT JOIN Lead_Courses lc ON l.LeadId = lc.LeadId
     LEFT JOIN Vehicle_Brand vb ON lc.CourseId = vb.Brand_Id
     LEFT JOIN Vehicle_Model vm ON lc.BatchId = vm.Model_Id
@@ -2155,27 +2428,39 @@ module.exports = {
     LEFT JOIN Profession_Master pm ON pm.ProfessionId = l.Profession
     LEFT JOIN Gender_Master gm ON gm.GenderId = l.Gender
     LEFT JOIN VehicleProfile AS vp ON vp.VehicleProfileId = l.Vehicle_Profile
+    LEFT JOIN RiderProfile rp ON rp.RiderProfileId = vp.RiderProfileId
     LEFT JOIN Rear_Wheel_Type AS rwt ON rwt.id = vp.Rear_Whee_ld
     LEFT JOIN RankedCallLogs rcl ON l.LeadId = rcl.LeadId AND rcl.rn = 1
-    WHERE l.LeadStatus IN (${leadDetails.join(",")}) AND ${whereClause} AND ${roleClause} AND l.IsActive = 1
-    GROUP BY l.LeadId
-    ORDER BY l.NextFollowUp ${arrange}`;
-      const result = await query(myquery);
-
-      if (result.length == 0) {
-        return success(res, "No data found", []);
-      }
-      result.forEach(row => {
-        row.Brand_Ids = row.Brand_Ids ? row.Brand_Ids.split(',') : [];
-        row.Brand_Names = row.Brand_Names ? row.Brand_Names.split(',') : [];
-        row.Vehicle_Model_Ids = row.Vehicle_Model_Ids ? row.Vehicle_Model_Ids.split(',') : [];
-        row.Model_Names = row.Model_Names ? row.Model_Names.split(',') : [];
-      });
-      return success(res, "Data fetched successfully", result);
+    LEFT JOIN Reminder r ON l.LeadId = r.LeadId
+            LEFT JOIN Call_Logs cl ON cl.LeadId = l.LeadId
+            LEFT JOIN Stage_Master sm2 ON r.SubstatusId = sm2.Stage_Master_Id
+        WHERE
+            (${whereClause}) AND ${roleClause} AND l.LeadStatus NOT IN (15,25,26,27,30,37,44,107,16,10) AND r.FollowUpDate IS NOT NULL
+        GROUP BY
+            r.FollowUpDate
+        ORDER BY
+            r.CreatedAt ${arrange};
+  `;
+  
+        const result = await query(myquery);
+  
+        if (result.length === 0) {
+            return success(res, "No data found", []);
+        }
+        // result.forEach(row => {
+        //   row.Brand_Ids = row.Brand_Ids ? row.Brand_Ids.split(',') : [];
+        //   row.Brand_Names = row.Brand_Names ? row.Brand_Names.split(',') : [];
+        //   row.Vehicle_Model_Ids = row.Vehicle_Model_Ids ? row.Vehicle_Model_Ids.split(',') : [];
+        //   row.Model_Names = row.Model_Names ? row.Model_Names.split(',') : [];
+        // });
+        return success(res, "Data fetched successfully", result);
     } catch (err) {
-      return failure(res, "Error while processing the request", err.message);
+        return failure(res, "Error while processing the request", err.message);
     }
   },
+
+
+
   getSourceMediumDestinationCampaignDropDown: async function (req, res) {
     let connect;
     try {

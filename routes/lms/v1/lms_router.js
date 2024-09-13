@@ -34,6 +34,7 @@ const {
   getPaymentHistory,
   getCallLogsByUserId,
   centerNameDropdown,
+  getFollowUpDataHistoryOfLeadId,
 } = require("../../../controllers/LMS/lms_controller");
 
 const { bulkDataUpload } = require("../../../controllers/LMS/lms_bulk_upload");
@@ -78,6 +79,7 @@ router.get("/get/lead-types", leadTypeDropDown);
 //getLead By LeadId
 router.get("/get/lead-data/:leadId", getLeadDataByLeadId);
 router.get("/fetch/follow-up-data/:type", getFollowUpDataOfMissedTodayUpcoming);
+router.get("/fetch/follow-up-data/history/:LeadId", getFollowUpDataHistoryOfLeadId);
 //Get Lead Source,Destination, Medium and Campaign dropdown
 router.get(
   "/get/src-medium-dest-camp/:category",

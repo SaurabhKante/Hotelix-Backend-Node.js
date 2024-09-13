@@ -11,6 +11,11 @@ router.use(
   (req, res, next) => role(req, res, next, [3, 5]),
   require("./lms")
 );
+router.use(
+  "/api/reminder",
+  (req, res, next) => role(req, res, next, [3, 5]),
+  require("./reminder")
+);
 router.use("/api/state", require("./state"));
 router.use("/api/vehicle", require("./vehicle_api"));
 // router.use("/api/inspection", require("./inspection_api/index"));

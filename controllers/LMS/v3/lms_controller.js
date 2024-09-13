@@ -1081,6 +1081,9 @@ GROUP BY LeadId`;
         Model_Id,
         Course_Id,
         Discount_Amount = 0,
+        Reminder_Date,
+        Reminder_Comments,
+        Reminder_Status,
       } = req.body;
   
       const LeadStatus = req.body.LeadStatus || 108;
@@ -1154,6 +1157,23 @@ GROUP BY LeadId`;
         `;
         await query(insertLeadCoursesQuery, [LeadId, Course_Id, Model_Id, CreatedBy, CreatedBy]);
       }
+
+      if (Reminder_Date !== null && Reminder_Date !== undefined) {
+        const insertReminderQuery = `
+            INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CourseId, CreatedBy, SubstatusId, Comments)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        const reminderValues = [
+          LeadId,
+          LeadStatus,
+          Reminder_Date,
+          Course_Id,
+          CreatedBy,
+          Reminder_Status,
+          Reminder_Comments,
+        ];
+        await query(insertReminderQuery, reminderValues);
+      }
   
         return success(res, "Payment details inserted successfully", {
           Payment_Details_Id: paymentResult.insertId,
@@ -1176,6 +1196,9 @@ GROUP BY LeadId`;
         WhatsAppNo,
         CreatedBy,
         CenterId,
+        Reminder_Date,
+        Reminder_Comments,
+        Reminder_Status,
         CourseDetails
       } = req.body;
   
@@ -1217,7 +1240,8 @@ GROUP BY LeadId`;
       const LeadId = leadInsertResult.insertId;
   
       // Iterate over CourseDetails to insert into Payment_Details and Lead_Courses tables
-      for (const courseDetail of CourseDetails) {
+      let firstCourseId = null; // Variable to store the first Course_Id
+      for (const [index, courseDetail] of CourseDetails.entries()) {
         const {
           Course_Id,
           Course_Fees,
@@ -1231,6 +1255,11 @@ GROUP BY LeadId`;
           utr_number,
           Comments
         } = courseDetail;
+  
+        // Save the first Course_Id from the first courseDetail entry
+        if (index === 0) {
+          firstCourseId = Course_Id;
+        }
   
         // Insert into Payment_Details table
         const insertPaymentQuery = `
@@ -1269,6 +1298,24 @@ GROUP BY LeadId`;
         }
       }
   
+      // Insert into Reminder table if Reminder_Date is provided
+      if (Reminder_Date != null && Reminder_Date != undefined && firstCourseId != null) {
+        const insertReminderQuery = `
+          INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CourseId, CreatedBy, SubstatusId, Comments)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        const reminderValues = [
+          LeadId,
+          LeadStatus,
+          Reminder_Date,
+          firstCourseId,  // Use the first Course_Id from the CourseDetails array
+          CreatedBy,
+          Reminder_Status,
+          Reminder_Comments,
+        ];
+        await query(insertReminderQuery, reminderValues);
+      }
+  
       return res.json({
         success: true,
         message: "Lead data added successfully",
@@ -1284,6 +1331,7 @@ GROUP BY LeadId`;
       });
     }
   },
+  
   
 
 
