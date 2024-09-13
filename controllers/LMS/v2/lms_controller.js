@@ -19,11 +19,11 @@ const getLeadCourseDetails = async (LeadIds) => {
         l.LeadId,
         lc.CourseId,
         vb.Brand_Name AS CourseName, 
-        vb.Course_Fees,
+        pd.Course_Fees,
         lc.BatchId,
         vm.Model_Name AS Batch_Name,
         IFNULL(SUM(pd.Paid_Amount), 0) AS Total_Paid_Amount,
-        (vb.Course_Fees - IFNULL(SUM(pd.Paid_Amount), 0)) AS Remaining_Amount,
+        (pd.Course_Fees - IFNULL(SUM(pd.Paid_Amount), 0)) AS Remaining_Amount,
         pd.Discount_Amount,
         pd.Payment_Mode,
         pd.Payment_Number

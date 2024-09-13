@@ -20,7 +20,7 @@ const getLeadCourseDetails = async (LeadIds) => {
         l.LeadId,
         lc.CourseId,
         vb.Brand_Name AS CourseName, 
-        vb.Course_Fees,
+        pd.Course_Fees,
         lc.BatchId,
         vm.Model_Name AS Batch_Name,
         pd.Paid_Amount,
