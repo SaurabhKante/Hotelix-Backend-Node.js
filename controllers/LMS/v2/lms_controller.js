@@ -530,16 +530,7 @@ module.exports = {
             ROW_NUMBER() OVER (PARTITION BY cl.LeadId ORDER BY cl.CreatedAt DESC) AS rn
         FROM
             Call_Logs cl
-    ),
-    TotalPaidAmount AS (
-    SELECT
-        LeadId,
-        SUM(Paid_Amount) AS TotalPaid_Amount
-    FROM
-        Payment_Details
-    GROUP BY
-        LeadId
-)
+    )
     SELECT
         l.LeadId,
         l.LeadSourceId,
@@ -599,7 +590,7 @@ module.exports = {
         l.BookedAmount,
         l.Vehicle_Profile,
         vp.InspectionDate,
-        tpa.TotalPaid_Amount AS Paid_Amount,
+        pd.Paid_Amount,
     pd.Balance_Amount,
     pd.Course_Fees,
     pd.Discount_Amount,
@@ -644,7 +635,6 @@ module.exports = {
           WHERE pd2.LeadId = pd1.LeadId
       )
   ) pd ON l.LeadId = pd.LeadId
-   LEFT JOIN TotalPaidAmount tpa ON l.LeadId = tpa.LeadId 
     JOIN Type_Master tm ON l.LeadTypeId = tm.TypeMasterId
     JOIN \`User\` u ON l.CreatedBy = u.UserId
     JOIN \`User\` u2 ON l.UpdatedBy = u2.UserId
@@ -695,16 +685,7 @@ module.exports = {
             ROW_NUMBER() OVER (PARTITION BY cl.LeadId ORDER BY cl.CreatedAt DESC) AS rn
         FROM
             Call_Logs cl
-    ),
-    TotalPaidAmount AS (
-    SELECT
-        LeadId,
-        SUM(Paid_Amount) AS TotalPaid_Amount
-    FROM
-        Payment_Details
-    GROUP BY
-        LeadId
-)
+    )
     SELECT
         l.LeadId,
         l.LeadSourceId,
@@ -757,7 +738,7 @@ module.exports = {
         l.learningInstitute_option,
         l.classExtenion_option,
         l.openDemat_option,
-        tpa.TotalPaid_Amount AS Paid_Amount,
+        pd.Paid_Amount,
         pd.Balance_Amount,
         pd.Course_Fees,
         pd.Discount_Amount,
@@ -809,7 +790,6 @@ module.exports = {
           WHERE pd2.LeadId = pd1.LeadId
       )
   ) pd ON l.LeadId = pd.LeadId
-    LEFT JOIN TotalPaidAmount tpa ON l.LeadId = tpa.LeadId 
     JOIN Type_Master tm ON l.LeadTypeId = tm.TypeMasterId
     JOIN \`User\` u ON l.CreatedBy = u.UserId
     JOIN \`User\` u2 ON l.UpdatedBy = u2.UserId
