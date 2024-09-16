@@ -1256,6 +1256,10 @@ GROUP BY LeadId`;
           Comments
         } = courseDetail;
   
+
+        if (Paid_Amount == null || Course_Id == null || Paid_Amount === 0) {
+          continue; // Skip this iteration
+        }
         // Save the first Course_Id from the first courseDetail entry
         if (index === 0) {
           firstCourseId = Course_Id;

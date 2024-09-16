@@ -165,6 +165,11 @@ module.exports = {
       // Insert data into Payment_Details and Lead_Course tables for each course in CourseDetails
       if (Array.isArray(body.CourseDetails) && body.CourseDetails.length > 0) {
         for (const course of body.CourseDetails) {
+          // Skip if Paid_Amount is null
+          if (course.Paid_Amount === null || course.Paid_Amount === 0 || course.Course_Id === null) {
+            continue;
+          }
+  
           const paymentData = {
             LeadId: insertedLeadId,
             Course_Id: course.Course_Id || null,
@@ -205,6 +210,8 @@ module.exports = {
           await query(leadCourseQuery, leadCourseValues);
         }
       }
+  
+      // Insert reminder data if applicable
       if (body.Reminder_Date != null && body.Reminder_Date != undefined || body.NextFollowUp != null) {
         const insertReminderQuery = `
           INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CourseId, CreatedBy, SubstatusId, Comments)
@@ -236,6 +243,7 @@ module.exports = {
       return failure(res, "Error while adding lead data", err.message);
     }
   },
+  
   
   
   
@@ -522,7 +530,16 @@ module.exports = {
             ROW_NUMBER() OVER (PARTITION BY cl.LeadId ORDER BY cl.CreatedAt DESC) AS rn
         FROM
             Call_Logs cl
-    )
+    ),
+    TotalPaidAmount AS (
+    SELECT
+        LeadId,
+        SUM(Paid_Amount) AS TotalPaid_Amount
+    FROM
+        Payment_Details
+    GROUP BY
+        LeadId
+)
     SELECT
         l.LeadId,
         l.LeadSourceId,
@@ -582,7 +599,7 @@ module.exports = {
         l.BookedAmount,
         l.Vehicle_Profile,
         vp.InspectionDate,
-        pd.Paid_Amount,
+        tpa.TotalPaid_Amount AS Paid_Amount,
     pd.Balance_Amount,
     pd.Course_Fees,
     pd.Discount_Amount,
@@ -627,6 +644,7 @@ module.exports = {
           WHERE pd2.LeadId = pd1.LeadId
       )
   ) pd ON l.LeadId = pd.LeadId
+   LEFT JOIN TotalPaidAmount tpa ON l.LeadId = tpa.LeadId 
     JOIN Type_Master tm ON l.LeadTypeId = tm.TypeMasterId
     JOIN \`User\` u ON l.CreatedBy = u.UserId
     JOIN \`User\` u2 ON l.UpdatedBy = u2.UserId
@@ -677,7 +695,16 @@ module.exports = {
             ROW_NUMBER() OVER (PARTITION BY cl.LeadId ORDER BY cl.CreatedAt DESC) AS rn
         FROM
             Call_Logs cl
-    )
+    ),
+    TotalPaidAmount AS (
+    SELECT
+        LeadId,
+        SUM(Paid_Amount) AS TotalPaid_Amount
+    FROM
+        Payment_Details
+    GROUP BY
+        LeadId
+)
     SELECT
         l.LeadId,
         l.LeadSourceId,
@@ -730,7 +757,7 @@ module.exports = {
         l.learningInstitute_option,
         l.classExtenion_option,
         l.openDemat_option,
-        pd.Paid_Amount,
+        tpa.TotalPaid_Amount AS Paid_Amount,
         pd.Balance_Amount,
         pd.Course_Fees,
         pd.Discount_Amount,
@@ -773,7 +800,16 @@ module.exports = {
         \`Lead\` l
     JOIN LeadSource_Master lsm ON l.LeadSourceId = lsm.LeadSourceId
     JOIN Client_Master clm ON l.ClientMasterId = clm.ClientMasterId
-    LEFT JOIN Payment_Details pd ON l.LeadId = pd.LeadId
+    LEFT JOIN (
+      SELECT *
+      FROM Payment_Details pd1
+      WHERE pd1.created_on = (
+          SELECT MAX(pd2.created_on)
+          FROM Payment_Details pd2
+          WHERE pd2.LeadId = pd1.LeadId
+      )
+  ) pd ON l.LeadId = pd.LeadId
+    LEFT JOIN TotalPaidAmount tpa ON l.LeadId = tpa.LeadId 
     JOIN Type_Master tm ON l.LeadTypeId = tm.TypeMasterId
     JOIN \`User\` u ON l.CreatedBy = u.UserId
     JOIN \`User\` u2 ON l.UpdatedBy = u2.UserId

@@ -624,6 +624,9 @@ let CourseId;
         // Process payment details for each course
         if (body.CourseDetails && Array.isArray(body.CourseDetails)) {
             for (const course of body.CourseDetails) {
+              if (course.Paid_Amount === null || course.Paid_Amount === 0 || course.Course_Id === null) {
+                continue;
+              }
                 const paymentData = {
                     Course_Id: course.Course_Id || null,
                     Course_Name: course.Course_Name || null,
