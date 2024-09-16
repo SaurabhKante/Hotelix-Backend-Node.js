@@ -857,7 +857,7 @@ GROUP BY
     
           // Map course details to leads
           const courseDetailsMap = {};
-          courseDetails.forEach(detail => {
+          courses.forEach(detail => {
             courseDetailsMap[detail.LeadId] = detail.courses;
           });
         
