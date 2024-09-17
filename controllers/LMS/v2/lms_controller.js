@@ -87,8 +87,41 @@ const getLeadCourseDetails = async (LeadIds) => {
     throw new Error('An error occurred while fetching lead course details.');
   }
 };
-
-
+const getCountObject = async (whereClause) => {
+  try {
+    let countValues = await query(`
+      SELECT
+        sm.Stage_Parent_Id,
+        COUNT(*) AS lead_count
+      FROM
+        \`Lead\` AS l
+      JOIN \`Stage_Master\` sm ON sm.\`Stage_Master_Id\` = l.LeadStatus
+      LEFT JOIN Vehicle_Model vm ON l.Vehicle_Model_Id = vm.Model_Id
+      LEFT JOIN \`Vehicle_Brand\` as vb ON vm.Brand_Id = vb.Brand_Id
+      ${whereClause}
+      GROUP BY
+        sm.Stage_Parent_Id
+    `);
+  
+    // Initialize countObject with default values
+    const countObject = { 10: 0, 11: 0, 14: 0, 15: 0, 16: 0 };
+  
+    // Update countObject based on query result
+    for (const item of countValues) {
+      if (countObject.hasOwnProperty(item.Stage_Parent_Id)) {
+        countObject[item.Stage_Parent_Id] = item.lead_count;
+      }
+    }
+    
+    // Log the actual countObject using JSON.stringify
+    console.log(`countObject as: ${JSON.stringify(countObject)}`);
+    
+    return countObject; // Return the countObject if needed
+  } catch (error) {
+    console.error('Error in getCountObject:', error);
+    throw new Error('An error occurred while fetching countObject details.');
+  }
+};
 
 
 
@@ -377,6 +410,7 @@ module.exports = {
       let Userid = req.headers.USERID;
       let myquery;
       let role = [];
+      let countObject;
       role = req.headers.roleData.ADMIN;
       if (role === undefined) {
         role = req.headers.roleData.SALES;
@@ -491,6 +525,8 @@ module.exports = {
             );
           }
         }
+
+        countObject = await getCountObject(whereClause);
 
         if (filters.LeadStatus) {
           if (typeof filters.LeadStatus == "number") {
@@ -826,91 +862,87 @@ module.exports = {
         return success(res, "No data Found", []);
       }
 
-      let countValues = await query(`
-      SELECT
-  sm.Stage_Parent_Id,
-    COUNT(*) AS lead_count
-FROM
-    \`Lead\` AS l
- join \`Stage_Master\` sm on sm.\`Stage_Master_Id\` = l.LeadStatus
- LEFT JOIN Vehicle_Model vm ON l.Vehicle_Model_Id = vm.Model_Id
- LEFT JOIN \`Vehicle_Brand\` as vb ON vm.Brand_Id = vb.Brand_Id
- ${whereClause}
-GROUP BY
-    sm.Stage_Parent_Id`);
+//       let countValues = await query(`
+//       SELECT
+//   sm.Stage_Parent_Id,
+//     COUNT(*) AS lead_count
+// FROM
+//     \`Lead\` AS l
+//  join \`Stage_Master\` sm on sm.\`Stage_Master_Id\` = l.LeadStatus
+//  LEFT JOIN Vehicle_Model vm ON l.Vehicle_Model_Id = vm.Model_Id
+//  LEFT JOIN \`Vehicle_Brand\` as vb ON vm.Brand_Id = vb.Brand_Id
+//  ${whereClause}
+// GROUP BY
+//     sm.Stage_Parent_Id`);
 
-      const countObject = { 10: 0, 11: 0, 14: 0, 15: 0, 16: 0 };
+//       const countObject = { 10: 0, 11: 0, 14: 0, 15: 0, 16: 0 };
 
-      for (const item of countValues) {
-        if ((countObject[item.Stage_Parent_Id] = item.Stage_Parent_Id)) {
-          countObject[item.Stage_Parent_Id] = item.lead_count;
-        }
-      }
+//       for (const item of countValues) {
+//         if ((countObject[item.Stage_Parent_Id] = item.Stage_Parent_Id)) {
+//           countObject[item.Stage_Parent_Id] = item.lead_count;
+//         }
+//       }
 
       if (req.body.data) {
         const TotalLeadsData = await query(TotalLedaInfo, queryParams);
         let searchResult = [];
         let search = req.body.data.toLowerCase();
-        for (let i of TotalLeadsData) {
-          if (
-            (i.hasOwnProperty("LeadName") &&
-              i["LeadName"].toLowerCase().includes(search)) ||
-            (i.hasOwnProperty("MobileNumber") &&
-              i["MobileNumber"].includes(search)) ||
-            (i.hasOwnProperty("WhatsAppNo") &&
-              i["WhatsAppNo"] &&
-              i["WhatsAppNo"].includes(search))
-          ) {
-            searchResult.push(i);
-          }
-        }
-
-        if (searchResult.length > 0) {
-          const LeadIds = searchResult.map(result => result.LeadId);
-    
-          // Fetch course details
-          const courses = await getLeadCourseDetails(LeadIds);
-    
-          // Map course details to leads
-          const courseDetailsMap = {};
-          courses.forEach(detail => {
-            courseDetailsMap[detail.LeadId] = detail.courses;
-          });
         
-
-            searchResult.forEach(lead => {
-              lead.courses = courseDetailsMap[lead.LeadId] || [];
-            });
+        for (let i of TotalLeadsData) {
+            if (
+                (i.hasOwnProperty("LeadName") && i["LeadName"].toLowerCase().includes(search)) ||
+                (i.hasOwnProperty("MobileNumber") && i["MobileNumber"].includes(search)) ||
+                (i.hasOwnProperty("WhatsAppNo") && i["WhatsAppNo"] && i["WhatsAppNo"].includes(search))
+            ) {
+                searchResult.push(i);
+            }
+        }
     
-          let totalPageCount = Math.ceil(searchResult.length / pageSize);
-          let pagination = {
-            totalPages: totalPageCount,
-            itemsPerPage:
-              searchResult.length < pageSize ? searchResult.length : pageSize,
-            itemsCount: searchResult.length,
-            previousPage:
-              page - 1 >= 0 && page - 1 <= totalPageCount - 1 ? page - 1 : null,
-            currentPage: page <= totalPageCount - 1 ? page : null,
+        // Default pagination values when no data is found
+        let totalPageCount = Math.ceil(searchResult.length / pageSize);
+        let pagination = {
+            totalPages: totalPageCount || 1,
+            itemsPerPage: searchResult.length < pageSize ? searchResult.length || 1 : pageSize,
+            itemsCount: searchResult.length || 1,
+            previousPage: page - 1 >= 0 && page - 1 <= totalPageCount - 1 ? page - 1 : null,
+            currentPage: page <= totalPageCount - 1 ? page : 0,
             nextPage: page + 1 <= totalPageCount - 1 ? page + 1 : null,
             firstPage: 0,
-            lastPage: totalPageCount - 1 >= 0 ? totalPageCount - 1 : null,
-          };
+            lastPage: totalPageCount - 1 >= 0 ? totalPageCount - 1 : 0,
+        };
     
-          return success(
+        if (searchResult.length > 0) {
+            const LeadIds = searchResult.map(result => result.LeadId);
+    
+            // Fetch course details
+            const courses = await getLeadCourseDetails(LeadIds);
+    
+            // Map course details to leads
+            const courseDetailsMap = {};
+            courses.forEach(detail => {
+                courseDetailsMap[detail.LeadId] = detail.courses;
+            });
+    
+            searchResult.forEach(lead => {
+                lead.courses = courseDetailsMap[lead.LeadId] || [];
+            });
+        }
+    
+        // Return response with searchResult (even if empty) and pagination
+        return success(
             res,
             "Data found",
-            searchResult,
-            pagination ,
+            searchResult, // Can be an empty array if no matches are found
+            pagination,
             {
-              "10": 223,
-              "11": 1,
-              "14": 5,
-              "15": 0,
-              "16": 0
-          }
-          );
-          
-        }
+                "10": 223,
+                "11": 1,
+                "14": 5,
+                "15": 0,
+                "16": 0
+            }
+        );
+    
       } else {
         // Normal data response without search filter
         const LeadIds = results.map(lead => lead.LeadId);
