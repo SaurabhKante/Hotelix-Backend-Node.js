@@ -594,7 +594,7 @@ module.exports = {
         u3.UserName AS AssignedToName,
         l.UpdatedOn,
         l.LeadStatus,
-        sm.Stage_Name,
+        smParent.Stage_Name AS Stage_Name,
         l.Comments,
         l.NextFollowUp,
         l.WhatsAppNo,
@@ -679,6 +679,7 @@ module.exports = {
     LEFT JOIN LeadSource_Master lsm3 ON l.Campaign = lsm3.LeadSourceId
     LEFT JOIN \`User\` u3 ON l.AssignedTo = u3.UserId
     JOIN Stage_Master sm ON l.LeadStatus = sm.Stage_Master_Id
+    JOIN Stage_Master smParent ON sm.Stage_Parent_Id = smParent.Stage_Master_Id
     LEFT JOIN Vehicle_Model vm ON l.Vehicle_Model_Id = vm.Model_Id
     LEFT JOIN \`Vehicle_Brand\` as vb ON vm.Brand_Id= vb.Brand_Id
     LEFT JOIN City_Master cm ON l.CityId = cm.City_Id
@@ -693,11 +694,11 @@ module.exports = {
       order by l.UpdatedOn DESC LIMIT ${skip},${pageSize}`;
       const results = await query(myquery, queryParams);
 
-      if (!results) {
+      if (results.length <= 0) {
         return success(res, "No data Found", {});
       }
 
-      const LeadIds = results.map(result => result.LeadId);
+  const LeadIds = results.map(result => result.LeadId);
 
       // Fetch course details
       const courseDetails = await getLeadCourseDetails(LeadIds);
@@ -712,6 +713,8 @@ module.exports = {
       results.forEach(lead => {
         lead.courses = courseDetailsMap[lead.LeadId] || [];
       });
+
+      
       
 
       const TotalLedaInfo = `
@@ -749,7 +752,7 @@ module.exports = {
         u3.UserName AS AssignedToName,
         l.UpdatedOn,
         l.LeadStatus,
-        sm.Stage_Name,
+        smParent.Stage_Name AS Stage_Name,
         l.Comments,
         l.NextFollowUp,
         l.WhatsAppNo,
@@ -834,6 +837,7 @@ module.exports = {
     LEFT JOIN LeadSource_Master lsm3 ON l.Campaign = lsm3.LeadSourceId
     LEFT JOIN \`User\` u3 ON l.AssignedTo = u3.UserId
     JOIN Stage_Master sm ON l.LeadStatus = sm.Stage_Master_Id
+    JOIN Stage_Master smParent ON sm.Stage_Parent_Id = smParent.Stage_Master_Id
     LEFT JOIN Vehicle_Model vm ON l.Vehicle_Model_Id = vm.Model_Id
     LEFT JOIN Vehicle_Brand vb ON vm.Brand_Id = vb.Brand_Id
     LEFT JOIN City_Master cm ON l.CityId = cm.City_Id
@@ -938,7 +942,7 @@ module.exports = {
 
         );
     
-      } else {
+      } else if(results){
         // Normal data response without search filter
         const LeadIds = results.map(lead => lead.LeadId);
         const courseDetails = await getLeadCourseDetails(LeadIds);
