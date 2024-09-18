@@ -934,13 +934,8 @@ module.exports = {
             "Data found",
             searchResult, // Can be an empty array if no matches are found
             pagination,
-            {
-                "10": 223,
-                "11": 1,
-                "14": 5,
-                "15": 0,
-                "16": 0
-            }
+            countObject
+
         );
     
       } else {
