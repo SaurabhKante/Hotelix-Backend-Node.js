@@ -199,7 +199,7 @@ module.exports = {
       if (Array.isArray(body.CourseDetails) && body.CourseDetails.length > 0) {
         for (const course of body.CourseDetails) {
           // Skip if Paid_Amount is null
-          if (course.Paid_Amount === null || course.Paid_Amount === 0 || course.Course_Id === null) {
+          if (course.Paid_Amount === null || course.Paid_Amount === 0 || course.Course_Id === null || course.VehicleModelId === null || course.Payment_Mode === null) {
             continue;
           }
   

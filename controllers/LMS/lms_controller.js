@@ -624,7 +624,7 @@ let CourseId;
         // Process payment details for each course
         if (body.CourseDetails && Array.isArray(body.CourseDetails)) {
             for (const course of body.CourseDetails) {
-              if (course.Paid_Amount === null || course.Paid_Amount === 0 || course.Course_Id === null) {
+              if (course.Paid_Amount === null || course.Paid_Amount === 0 || course.Course_Id === null || course.VehicleModelId === null || course.Payment_Mode === null) {
                 continue;
               }
                 const paymentData = {
@@ -1924,7 +1924,7 @@ let CourseId;
   paymentModeDropDown: async function (req, res) {
     try {
       const data = await query(
-        `SELECT Stage_Master_Id, Stage_Name, Stage_Category FROM Stage_Master WHERE Stage_Name IN ('Cash', 'Google Pay', 'Phone Pe')`
+        `SELECT Stage_Master_Id, Stage_Name, Stage_Category FROM Stage_Master WHERE Stage_Name IN ('Cash', 'Google Pay', 'Phone Pe', 'UPI', 'Paytm', 'Bank Transaction') AND Stage_Active_Status = 1`
       );
       if (data.length === 0)
         return success(res, "No data found for this request", []);
@@ -1938,7 +1938,7 @@ let CourseId;
     try {
       const paymentMode = req.params.paymentMode;
       const data = await query(
-        `Select Stage_Master_Id, Stage_Name from Stage_Master where Stage_Parent_Id = (Select Stage_Master_Id from Stage_Master where Stage_Name = ?)`,
+        `Select Stage_Master_Id, Stage_Name from Stage_Master where Stage_Parent_Id = (Select Stage_Master_Id from Stage_Master where Stage_Name = ?) AND Stage_Active_Status = 1`,
         [paymentMode]
       );
       if (data.length === 0)

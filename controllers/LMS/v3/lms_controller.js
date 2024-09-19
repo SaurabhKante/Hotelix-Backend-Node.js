@@ -1088,6 +1088,22 @@ GROUP BY LeadId`;
   
       const LeadStatus = req.body.LeadStatus || 108;
   
+      if (Paid_Amount === null || Paid_Amount === undefined) {
+        return failure(res, "Paid_Amount is required", []);
+      }
+  
+      if (!Payment_Mode) {
+        return failure(res, "Payment_Mode is required", []);
+      }
+  
+      if (Model_Id === null || Model_Id === undefined) {
+        return failure(res, "Model_Id is required", []);
+      }
+  
+      if (Course_Id === null || Course_Id === undefined) {
+        return failure(res, "Course_Id is required", []);
+      }
+
       const insertPaymentQuery = `
         INSERT INTO Payment_Details (LeadId, Course_Id, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number, Course_Fees, Comments, Attached_file, utr_number, Discount_Amount, Created_On)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, NOW())
@@ -1257,7 +1273,7 @@ GROUP BY LeadId`;
         } = courseDetail;
   
 
-        if (Paid_Amount == null || Course_Id == null || Paid_Amount === 0) {
+        if (Paid_Amount == null || Course_Id == null || Paid_Amount === 0 || Payment_Mode === null || VehicleModelId === null) {
           continue; // Skip this iteration
         }
         // Save the first Course_Id from the first courseDetail entry
