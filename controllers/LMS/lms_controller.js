@@ -3,7 +3,8 @@ const util = require("util");
 //util.promisify return the promise instead of call back.
 const query = util.promisify(pool.query).bind(pool);
 const promisePool = require("../../config/dbV2");
-const moment = require('moment'); 
+
+const moment = require('moment-timezone');
 /**
  * For JSON response
  */
@@ -2093,20 +2094,23 @@ let CourseId;
       );
       let leadDetails = leadStatusDetails.map(i => i.Stage_Master_Id);
 
-        let whereClause;
-        const now = moment().format('YYYY-MM-DD HH:mm:ss');
-        const today = moment().format('YYYY-MM-DD');
+      let whereClause;
+      
+      // Set timezone to Asia/Kolkata for accurate date comparisons
+      const now = moment().tz('Asia/Kolkata').format('YYYY-MM-DD HH:mm:ss');
+      const today = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
 
-        if (type.toLowerCase() === "missed") {
-            whereClause = `(lr.FollowUpDate) < "${now}"`;
-        } else if (type.toLowerCase() === "today") {
-            whereClause = `(lr.FollowUpDate) >= "${today} 00:00:00" AND (lr.FollowUpDate) < "${today} 23:59:59"`;
-        } else if (type.toLowerCase() === "upcoming") {
-            whereClause = `(lr.FollowUpDate) >= "${now}"`;
-            arrange = ``;
-        } else {
-            return failure(res, "Invalid type parameter", []);
-        }
+      if (type.toLowerCase() === "missed") {
+          whereClause = `(lr.FollowUpDate) < "${now}"`;
+      } else if (type.toLowerCase() === "today") {
+          whereClause = `(lr.FollowUpDate) >= "${today} 00:00:00" AND (lr.FollowUpDate) < "${today} 23:59:59"`;
+      } else if (type.toLowerCase() === "upcoming") {
+          whereClause = `(lr.FollowUpDate) >= "${now}"`;
+          arrange = ``;
+      } else {
+          return failure(res, "Invalid type parameter", []);
+      }
+
       const myquery = `
       WITH RankedCallLogs AS (
       SELECT
@@ -2147,28 +2151,28 @@ let CourseId;
       l.UpdatedOn,
       l.LeadStatus,
       smParent.Stage_Name AS Stage_Name,
-            COALESCE(lr.Comments, l.Comments) AS Comments,
-            DATE_FORMAT(lr.FollowUpDate, '%Y-%m-%d %H:%i:%s') AS NextFollowUp,
+      COALESCE(lr.Comments, l.Comments) AS Comments,
+      DATE_FORMAT(lr.FollowUpDate, '%Y-%m-%d %H:%i:%s') AS NextFollowUp,
       l.WhatsAppNo,
-       lc.CourseId AS Brand_Id,
+      lc.CourseId AS Brand_Id,
       vb.Brand_Name AS Brand_Name,
       lc.BatchId AS Vehicle_Model_Id,
       vm.Model_Name AS Model_Name,
       l.MfgYr,
       pd.Paid_Amount,
-    pd.Balance_Amount,
-    pd.Course_Fees,
-    pd.Discount_Amount,
-    pd.Payment_Mode,
-    pd.Payment_Number,
-    l.inspectionDate,
-l.Course_Id,
-l.learningInstitute_status,
-l.classExtension_status,
-l.openDemat_status,
-l.learningInstitute_option,
-l.classExtenion_option,
-l.openDemat_option,
+      pd.Balance_Amount,
+      pd.Course_Fees,
+      pd.Discount_Amount,
+      pd.Payment_Mode,
+      pd.Payment_Number,
+      l.inspectionDate,
+      l.Course_Id,
+      l.learningInstitute_status,
+      l.classExtension_status,
+      l.openDemat_status,
+      l.learningInstitute_option,
+      l.classExtenion_option,
+      l.openDemat_option,
       l.City,
       l.CityId,
       cm.City_Name,
@@ -2249,25 +2253,21 @@ l.openDemat_option,
     LEFT JOIN Rear_Wheel_Type AS rwt ON rwt.id = vp.Rear_Whee_ld
     LEFT JOIN RankedCallLogs rcl ON l.LeadId = rcl.LeadId AND rcl.rn = 1
     LEFT JOIN LatestReminder lr ON l.LeadId = lr.LeadId AND lr.rn = 1
-            LEFT JOIN Call_Logs cl ON cl.LeadId = l.LeadId
-            LEFT JOIN Stage_Master sm2 ON lr.SubstatusId = sm2.Stage_Master_Id
-        WHERE
-            (${whereClause}) AND ${roleClause} AND l.LeadStatus NOT IN (15,25,26,27,30,37,44,107,16,10)
-        GROUP BY
-            l.LeadId
-        ORDER BY
-            lr.CreatedAt ${arrange}`;
+    LEFT JOIN Call_Logs cl ON cl.LeadId = l.LeadId
+    LEFT JOIN Stage_Master sm2 ON lr.SubstatusId = sm2.Stage_Master_Id
+    WHERE
+        (${whereClause}) AND ${roleClause} AND l.LeadStatus NOT IN (15,25,26,27,30,37,44,107,16,10)
+    GROUP BY
+        l.LeadId
+    ORDER BY
+        lr.CreatedAt ${arrange}`;
+      
       const result = await query(myquery);
 
       if (result.length == 0) {
         return success(res, "No data found", []);
       }
-      // result.forEach(row => {
-      //   row.Brand_Ids = row.Brand_Ids ? row.Brand_Ids.split(',') : [];
-      //   row.Brand_Names = row.Brand_Names ? row.Brand_Names.split(',') : [];
-      //   row.Vehicle_Model_Ids = row.Vehicle_Model_Ids ? row.Vehicle_Model_Ids.split(',') : [];
-      //   row.Model_Names = row.Model_Names ? row.Model_Names.split(',') : [];
-      // });
+
       return success(res, "Data fetched successfully", result);
     } catch (err) {
       return failure(res, "Error while processing the request", err.message);

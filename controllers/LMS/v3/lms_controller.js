@@ -1392,7 +1392,6 @@ DropDownList: async (req, res) => {
     // Fetch Users
     const users = await query('SELECT UserId, UserName, RoleId, Email, Center_Id FROM User WHERE UserStatus = 1'); 
 
-
     // Fetch Lead Sources
     const leadSources = await query('SELECT LeadSourceId, Source_Name, Category, Active FROM LeadSource_Master WHERE Active = 1'); 
 
@@ -1404,6 +1403,15 @@ DropDownList: async (req, res) => {
 
     // Fetch Stage Master Data
     const stages = await query('SELECT * FROM Stage_Master WHERE Stage_Active_Status = 1');
+
+    // Fetch Profession Master Data
+    const professions = await query('SELECT ProfessionId, Profession FROM Profession_Master');
+
+    // Fetch State Master Data
+    const states = await query('SELECT State_Id, State_Name, Country_Id FROM State_Master');
+
+    // Fetch City Master Data
+    const cities = await query('SELECT City_Id, City_Name, State_Id FROM City_Master WHERE IsActive = 1');
 
     // Filter Payment Modes and Numbers
     const paymentModes = stages.filter(stage => stage.Stage_Category === 'Payment Mode' && stage.Stage_Name !== "Payment Mode");
@@ -1467,6 +1475,25 @@ DropDownList: async (req, res) => {
       parentId: child.Stage_Parent_Id
     }));
 
+    // Map Profession Master Data
+    const professionArr = professions.map(profession => ({
+      id: profession.ProfessionId,
+      name: profession.Profession
+    }));
+
+    // Map State Data separately
+    const stateArr = states.map(state => ({
+      id: state.State_Id,
+      name: state.State_Name
+    }));
+
+    // Map City Data separately with `parentId` as the `State_Id`
+    const cityArr = cities.map(city => ({
+      id: city.City_Id,
+      parentId: city.State_Id,
+      name: city.City_Name
+    }));
+
     // Format the data
     const formattedData = {
       "centerUser": centers.map(center => ({
@@ -1477,8 +1504,6 @@ DropDownList: async (req, res) => {
       "leadSource": leadSources.map(leadSource => ({
         id: leadSource.LeadSourceId,
         name: leadSource.Source_Name,
-        // Category: leadSource.Category,
-        // Active: leadSource.Active
       })),
       "courses": vehicleBrands.map(brand => ({
         id: brand.Brand_Id,
@@ -1495,7 +1520,10 @@ DropDownList: async (req, res) => {
       })),
       "paymentNumbers": paymentModesWithNumbers.flatMap(mode => mode.numbers),
       "leadStatus": leadStatusArr,
-      "leadStatusChild": leadStatusChildArr
+      "leadStatusChild": leadStatusChildArr,
+      "professions": professionArr,
+      "states": stateArr, // Updated response for states
+      "cities": cityArr   // Updated response for cities
     };
 
     // Send the response
@@ -1508,6 +1536,9 @@ DropDownList: async (req, res) => {
     res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 },
+
+
+
 
     // exportLeadsToExcel: async (req, res) => {
     //   try {

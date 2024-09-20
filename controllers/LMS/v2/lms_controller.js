@@ -23,8 +23,8 @@ const getLeadCourseDetails = async (LeadIds) => {
         lc.BatchId,
         vm.Model_Name AS Batch_Name,
         IFNULL(SUM(pd.Paid_Amount), 0) AS Total_Paid_Amount,
-        (pd.Course_Fees - IFNULL(SUM(pd.Paid_Amount), 0)) AS Remaining_Amount,
         pd.Discount_Amount,
+        (pd.Course_Fees - IFNULL(SUM(pd.Paid_Amount), 0) - (IFNULL(pd.Discount_Amount, 0))) AS Remaining_Amount,
         pd.Payment_Mode,
         pd.Payment_Number
       FROM 
@@ -247,7 +247,7 @@ module.exports = {
       // Insert reminder data if applicable
       if (body.Reminder_Date != null && body.Reminder_Date != undefined || body.NextFollowUp != null) {
         const insertReminderQuery = `
-          INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CourseId, CreatedBy, SubstatusId, Comments)
+          INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CourseId, CreatedBy,  Id, Comments)
           VALUES (?, ?, ?,  ?, ?, ?, ?)
         `;
   
