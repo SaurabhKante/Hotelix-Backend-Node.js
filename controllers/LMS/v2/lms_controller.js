@@ -247,8 +247,8 @@ module.exports = {
       // Insert reminder data if applicable
       if (body.Reminder_Date != null && body.Reminder_Date != undefined || body.NextFollowUp != null) {
         const insertReminderQuery = `
-          INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CourseId, CreatedBy,  Id, Comments)
-          VALUES (?, ?, ?,  ?, ?, ?, ?)
+          INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CourseId, CreatedBy, SubstatusId, Comments)
+          VALUES (?, ?, ?,  ?, ?, ?,?)
         `;
   
         const courseId = body.Course_Id === 0 ? null : firstCourseId;
