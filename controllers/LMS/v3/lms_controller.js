@@ -1413,6 +1413,9 @@ DropDownList: async (req, res) => {
     // Fetch City Master Data
     const cities = await query('SELECT City_Id, City_Name, State_Id FROM City_Master WHERE IsActive = 1');
 
+    // Fetch Gender Master Data
+    const genders = await query('SELECT GenderId, Gender FROM Gender_Master');
+
     // Filter Payment Modes and Numbers
     const paymentModes = stages.filter(stage => stage.Stage_Category === 'Payment Mode' && stage.Stage_Name !== "Payment Mode");
     const paymentNumbers = stages.filter(stage => stage.Stage_Category === 'Payment Number');
@@ -1487,11 +1490,17 @@ DropDownList: async (req, res) => {
       name: state.State_Name
     }));
 
-    // Map City Data separately with `parentId` as the `State_Id`
+    // Map City Data separately with parentId as the State_Id
     const cityArr = cities.map(city => ({
       id: city.City_Id,
       parentId: city.State_Id,
       name: city.City_Name
+    }));
+
+    // Map Gender Master Data
+    const genderArr = genders.map(gender => ({
+      id: gender.GenderId,
+      name: gender.Gender
     }));
 
     // Format the data
@@ -1522,8 +1531,9 @@ DropDownList: async (req, res) => {
       "leadStatus": leadStatusArr,
       "leadStatusChild": leadStatusChildArr,
       "professions": professionArr,
-      "states": stateArr, // Updated response for states
-      "cities": cityArr   // Updated response for cities
+      "states": stateArr,
+      "cities": cityArr,
+      "genders": genderArr  // Added gender to the response
     };
 
     // Send the response
@@ -1536,6 +1546,7 @@ DropDownList: async (req, res) => {
     res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 },
+
 
 
 
