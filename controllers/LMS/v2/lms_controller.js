@@ -209,7 +209,7 @@ module.exports = {
             Course_Name: course.Course_Name || null,
             Paid_Amount: course.Paid_Amount || null,
             Balance_Amount: course.Balance_Amount || null,
-            Created_By: body.Created_By || null,
+            Created_By: UserId || null,
             Comments: course.Comments || null,
             Course_Fees: course.Course_Fees || null,
             Discount_Amount: course.Discount_Amount || null,

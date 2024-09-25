@@ -486,7 +486,7 @@ module.exports = {
             return failure(res, "Data missing or invalid data", []);
         }
         let body = req.body;
-
+        const user_id = req.headers.USERID;
         const leadData = await query(`SELECT * FROM \`Lead\` WHERE LeadId = ?`, [LeadId]);
         if (leadData.length === 0) {
             return success(res, "No Lead found for this LeadId", []);
@@ -633,7 +633,7 @@ let CourseId;
                     Course_Name: course.Course_Name || null,
                     Paid_Amount: course.Paid_Amount || null,
                     Balance_Amount: course.Balance_Amount || null,
-                    Created_By: body.Created_By || null,
+                    Created_By: user_id || null,
                     Comments: course.Comments || null,
                     Course_Fees: course.Course_Fees || null,
                     Discount_Amount: course.Discount_Amount || null,
@@ -643,7 +643,7 @@ let CourseId;
                     utr_number: course.utr_number || null,
                 };
                 
-                if (paymentData.Payment_Mode !== null) {
+                if (paymentData.Payment_Mode !== null && body.LeadStatus == 108) {
                     const paymentKey = [
                         "LeadId",
                         "Course_Id",
@@ -711,8 +711,8 @@ let CourseId;
                         parseInt(LeadId),
                         course.Course_Id,
                         course.VehicleModelId,
-                        body.Created_By,
-                        body.Created_By,
+                        user_id,
+                        user_id,
                     ];
                     await query(
                         `INSERT INTO Lead_Courses (${leadCourseKey.join(",")}) VALUES (?,?,?,?,?)`,
@@ -723,7 +723,7 @@ let CourseId;
         }
 
         // Update Lead record
-        const user_id = req.headers.USERID;
+
         if (body.LeadStatus === 43 || leadData[0].LeadStatus === 43) {
             updateKey.push("AssignedTo = ?");
             updateValue.push(user_id);
