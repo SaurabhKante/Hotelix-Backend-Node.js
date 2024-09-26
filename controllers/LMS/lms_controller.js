@@ -495,6 +495,21 @@ module.exports = {
         const updateKey = [];
         const updateValue = [];
 
+        // Check if MobileNumber exists and is not the current lead's number
+        if (body.MobileNumber) {
+            const existingLead = await query(
+                `SELECT LeadId FROM \`Lead\` WHERE MobileNumber = ? AND LeadId != ?`,
+                [body.MobileNumber, LeadId]
+            );
+
+            if (existingLead.length > 0) {
+                return failure(res, `Lead with MobileNumber ${body.MobileNumber} already exists.`, []);
+            }
+
+            updateKey.push("MobileNumber = ?");
+            updateValue.push(body.MobileNumber);
+        }
+
         if (body.LeadName) {
             updateKey.push("LeadName = ?");
             updateValue.push(body.LeadName);
@@ -529,11 +544,7 @@ module.exports = {
             updateValue.push(dbdate);
         }
         if (body.LeadStatus) {
-            if ([18, 19, 20, 21, 22, 23, 24, 31, 43].includes(body.LeadStatus)) {
-                updateKey.push("LeadStatus = ?");
-            } else {
-                updateKey.push("LeadStatus = ?");
-            }
+            updateKey.push("LeadStatus = ?");
             updateValue.push(body.LeadStatus);
         }
         if (body.LeadSourceId) {
@@ -543,10 +554,6 @@ module.exports = {
         if (body.WhatsAppNo) {
             updateKey.push("WhatsAppNo = ?");
             updateValue.push(body.WhatsAppNo);
-        }
-        if (body.MobileNumber) {
-            updateKey.push("MobileNumber = ?");
-            updateValue.push(body.MobileNumber);
         }
         if (body.MfgYr) {
             updateKey.push("MfgYr = ?");
