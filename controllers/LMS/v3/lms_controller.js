@@ -1087,7 +1087,7 @@ GROUP BY LeadId`;
       } = req.body;
   
       const LeadStatus = req.body.LeadStatus || 108;
-  
+      let UserId = req.headers.USERID;
       if (Paid_Amount === null || Paid_Amount === undefined) {
         return failure(res, "Paid_Amount is required", []);
       }
@@ -1114,7 +1114,7 @@ GROUP BY LeadId`;
         Course_Id,
         Paid_Amount,
         Balance_Amount,
-        CreatedBy,
+        UserId,
         Payment_Mode,
         Payment_Number,
         Course_Fees,
@@ -1163,7 +1163,7 @@ GROUP BY LeadId`;
             SET BatchId = ?, UpdatedBy = ?, UpdatedAt = NOW()
             WHERE Id = ?
           `;
-          await query(updateBatchIdQuery, [Model_Id, CreatedBy, leadCourse.Id]);
+          await query(updateBatchIdQuery, [Model_Id, UserId, leadCourse.Id]);
         }
       } else {
         // Insert new record into Lead_Courses if not exists
@@ -1171,7 +1171,7 @@ GROUP BY LeadId`;
           INSERT INTO Lead_Courses (LeadId, CourseId, BatchId,  AssignedBy, IsActive, UpdatedBy)
           VALUES (?, ?, ?,  ?, 1, ?)
         `;
-        await query(insertLeadCoursesQuery, [LeadId, Course_Id, Model_Id, CreatedBy, CreatedBy]);
+        await query(insertLeadCoursesQuery, [LeadId, Course_Id, Model_Id, UserId, UserId]);
       }
 
       if (Reminder_Date !== null && Reminder_Date !== undefined) {
@@ -1184,7 +1184,7 @@ GROUP BY LeadId`;
           LeadStatus,
           Reminder_Date,
           Course_Id,
-          CreatedBy,
+          UserId,
           Reminder_Status,
           Reminder_Comments,
         ];
@@ -1254,7 +1254,7 @@ GROUP BY LeadId`;
       ];
       const leadInsertResult = await query(insertLeadQuery, leadValues);
       const LeadId = leadInsertResult.insertId;
-  
+      let UserId = req.headers.USERID;
       // Iterate over CourseDetails to insert into Payment_Details and Lead_Courses tables
       let firstCourseId = null; // Variable to store the first Course_Id
       for (const [index, courseDetail] of CourseDetails.entries()) {
@@ -1290,7 +1290,7 @@ GROUP BY LeadId`;
           Course_Fees,
           Paid_Amount,
           Balance_Amount,
-          CreatedBy,
+          UserId,
           Course_Id,
           Attached_file,
           utr_number,
@@ -1314,7 +1314,7 @@ GROUP BY LeadId`;
               INSERT INTO Lead_Courses (LeadId, CourseId, BatchId, AssignedBy, IsActive, UpdatedBy)
               VALUES (?, ?, ?, ?, 1, ?)
           `;
-          await query(insertLeadCoursesQuery, [LeadId, Course_Id, VehicleModelId, CreatedBy, CreatedBy]);
+          await query(insertLeadCoursesQuery, [LeadId, Course_Id, VehicleModelId, UserId, UserId]);
         }
       }
   
@@ -1329,7 +1329,7 @@ GROUP BY LeadId`;
           LeadStatus,
           Reminder_Date,
           firstCourseId,  // Use the first Course_Id from the CourseDetails array
-          CreatedBy,
+          UserId,
           Reminder_Status,
           Reminder_Comments,
         ];

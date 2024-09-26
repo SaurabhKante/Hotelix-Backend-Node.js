@@ -544,6 +544,10 @@ module.exports = {
             updateKey.push("WhatsAppNo = ?");
             updateValue.push(body.WhatsAppNo);
         }
+        if (body.MobileNumber) {
+            updateKey.push("MobileNumber = ?");
+            updateValue.push(body.MobileNumber);
+        }
         if (body.MfgYr) {
             updateKey.push("MfgYr = ?");
             updateValue.push(body.MfgYr);
@@ -625,7 +629,7 @@ let CourseId;
         // Process payment details for each course
         if (body.CourseDetails && Array.isArray(body.CourseDetails)) {
             for (const course of body.CourseDetails) {
-              if (course.Paid_Amount === null || course.Paid_Amount === 0 || course.Course_Id === null || course.VehicleModelId === null || course.Payment_Mode === null) {
+              if (course.Course_Id === null || course.VehicleModelId === null) {
                 continue;
               }
                 const paymentData = {
@@ -643,7 +647,10 @@ let CourseId;
                     utr_number: course.utr_number || null,
                 };
                 
-                if (paymentData.Payment_Mode !== null && body.LeadStatus == 108) {
+                if ( paymentData.Payment_Mode !== null &&
+                  body.LeadStatus === 108 &&
+                  paymentData.Paid_Amount !== null &&
+                  paymentData.Paid_Amount > 0) {
                     const paymentKey = [
                         "LeadId",
                         "Course_Id",
@@ -678,8 +685,8 @@ let CourseId;
                         `INSERT INTO Payment_Details (${paymentKey.join(",")}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                         paymentValue
                     );
-                    CourseId = paymentData.Course_Id;
-                }
+                  }
+                  CourseId = course.Course_Id;
 
                 // Check and update Lead_Courses
                 const checkLeadCoursesQuery = `
@@ -697,7 +704,7 @@ let CourseId;
                             SET BatchId = ?, UpdatedBy = ?, UpdatedAt = NOW()
                             WHERE Id = ?
                         `;
-                        await query(updateBatchIdQuery, [course.VehicleModelId, body.Created_By, leadCourse.Id]);
+                        await query(updateBatchIdQuery, [course.VehicleModelId, user_id, leadCourse.Id]);
                     }
                 } else if (course.Course_Id && course.VehicleModelId) {
                     const leadCourseKey = [
@@ -773,7 +780,7 @@ let CourseId;
                     leadStatus,
                     followUpDate,
                     CourseId,
-                    body.Created_By,
+                    user_id,
                     reminderStatus,
                     reminderComments,
                 ];
