@@ -635,6 +635,7 @@ module.exports = {
     pd.Discount_Amount,
     pd.Payment_Mode,
     pd.Payment_Number,
+    pd.Message,
         SUM(
           CASE
             WHEN cl.CallType = 110
@@ -786,6 +787,7 @@ module.exports = {
         pd.Discount_Amount,
         pd.Payment_Mode,
         pd.Payment_Number,
+        pd.Message,
         vp.Rear_Whee_ld AS "wheelTye",
         0 AS COST,
         rcl.StartTime AS "lastCalled",
