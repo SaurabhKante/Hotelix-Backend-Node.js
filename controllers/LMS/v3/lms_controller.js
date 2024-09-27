@@ -1076,6 +1076,7 @@ GROUP BY LeadId`;
         Payment_Number,
         Course_Fees,
         Comments,
+        Message,
         Attached_file,
         utr_number,
         Model_Id,
@@ -1105,8 +1106,8 @@ GROUP BY LeadId`;
       }
 
       const insertPaymentQuery = `
-        INSERT INTO Payment_Details (LeadId, Course_Id, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number, Course_Fees, Comments, Attached_file, utr_number, Discount_Amount, Created_On)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, NOW())
+        INSERT INTO Payment_Details (LeadId, Course_Id, Paid_Amount, Balance_Amount, Created_By, Payment_Mode, Payment_Number, Course_Fees, Comments,Message, Attached_file, utr_number, Discount_Amount, Created_On)
+        VALUES (?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?,?, NOW())
       `;
   
       const paymentResult = await query(insertPaymentQuery, [
@@ -1119,6 +1120,7 @@ GROUP BY LeadId`;
         Payment_Number,
         Course_Fees,
         Comments,
+        Message,
         Attached_file,
         utr_number,
         Discount_Amount
@@ -1269,7 +1271,8 @@ GROUP BY LeadId`;
           Payment_Number,
           Attached_file,
           utr_number,
-          Comments
+          Comments,
+          Message
         } = courseDetail;
   
 
@@ -1283,8 +1286,8 @@ GROUP BY LeadId`;
   
         // Insert into Payment_Details table
         const insertPaymentQuery = `
-            INSERT INTO Payment_Details (Course_Fees, Paid_Amount, Balance_Amount, Created_By, Course_Id, Attached_file, utr_number, LeadId, Payment_Mode, Payment_Number, Comments, Discount_Amount)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Payment_Details (Course_Fees, Paid_Amount, Balance_Amount, Created_By, Course_Id, Attached_file, utr_number, LeadId, Payment_Mode, Payment_Number, Comments,Message, Discount_Amount)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
         `;
         const paymentValues = [
           Course_Fees,
@@ -1298,6 +1301,7 @@ GROUP BY LeadId`;
           Payment_Mode,
           Payment_Number,
           Comments,
+          Message,
           Discount_Amount
         ];
         await query(insertPaymentQuery, paymentValues);

@@ -526,9 +526,9 @@ module.exports = {
             updateKey.push("Email = ?");
             updateValue.push(body.Email);
         }
-        if (body.Comments) {
+        if (body.LeadMessage) {
             updateKey.push("Comments = ?");
-            updateValue.push(body.Comments);
+            updateValue.push(body.LeadMessage);
         }
         if (body.marketKnowledge) {
             updateKey.push("marketKnowledge = ?");
@@ -646,6 +646,7 @@ let CourseId;
                     Balance_Amount: course.Balance_Amount || null,
                     Created_By: user_id || null,
                     Comments: course.Comments || null,
+                    Message: course.Message || null,
                     Course_Fees: course.Course_Fees || null,
                     Discount_Amount: course.Discount_Amount || null,
                     Payment_Mode: course.Payment_Mode || null,
@@ -666,6 +667,7 @@ let CourseId;
                         "Balance_Amount",
                         "Created_By",
                         "Comments",
+                        "Message",
                         "Course_Fees",
                         "Discount_Amount",
                         "Payment_Mode",
@@ -681,6 +683,7 @@ let CourseId;
                         paymentData.Balance_Amount,
                         paymentData.Created_By,
                         paymentData.Comments,
+                        paymentData.Message,
                         paymentData.Course_Fees,
                         paymentData.Discount_Amount,
                         paymentData.Payment_Mode,
@@ -689,7 +692,7 @@ let CourseId;
                         paymentData.utr_number,
                     ];
                     await query(
-                        `INSERT INTO Payment_Details (${paymentKey.join(",")}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        `INSERT INTO Payment_Details (${paymentKey.join(",")}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                         paymentValue
                     );
                   }

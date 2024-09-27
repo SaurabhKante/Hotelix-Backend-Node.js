@@ -157,7 +157,7 @@ module.exports = {
         MobileNumber: body.MobileNumber || null,
         VehicleRegistrationNumber: body.PinCode || null,
         Email: body.Email || null,
-        Comments: body.Comments || null,
+        Comments: body.LeadMessage || null,
         NextFollowUp: body.NextFollowUp
           ? new Date(body.NextFollowUp).toISOString().slice(0, 19).replace("T", " ")
           : null,
@@ -211,6 +211,7 @@ module.exports = {
             Balance_Amount: course.Balance_Amount || null,
             Created_By: UserId || null,
             Comments: course.Comments || null,
+            Message: course.Message || null,
             Course_Fees: course.Course_Fees || null,
             Discount_Amount: course.Discount_Amount || null,
             BookedAmount: parseInt(body.BookedAmount) || null,
