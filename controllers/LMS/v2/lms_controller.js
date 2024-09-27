@@ -26,7 +26,8 @@ const getLeadCourseDetails = async (LeadIds) => {
         pd.Discount_Amount,
         (pd.Course_Fees - IFNULL(SUM(pd.Paid_Amount), 0) - (IFNULL(pd.Discount_Amount, 0))) AS Remaining_Amount,
         pd.Payment_Mode,
-        pd.Payment_Number
+        pd.Payment_Number,
+        pd.Message
       FROM 
         \`Lead\` l
       LEFT JOIN 
@@ -73,6 +74,7 @@ const getLeadCourseDetails = async (LeadIds) => {
           Discount_Amount: row.Discount_Amount,
           Payment_Mode: row.Payment_Mode,
           Payment_Number: row.Payment_Number,
+          Message: row.Message
         });
       }
 

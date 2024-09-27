@@ -31,7 +31,8 @@ const getLeadCourseDetails = async (LeadIds) => {
         pd.Created_On,
         pd.Attached_file,
         pd.utr_number,
-        pd.Comments
+        pd.Comments,
+        pd.Message
       FROM 
         \`Lead\` l
       LEFT JOIN 
@@ -86,7 +87,8 @@ const getLeadCourseDetails = async (LeadIds) => {
         Attached_file: row.Attached_file,
         utr_number: row.utr_number,
         Comments: row.Comments,
-        BatchId: row.BatchId
+        BatchId: row.BatchId,
+        Message : row.Message
       });
 
       // Update total paid amount for the course
