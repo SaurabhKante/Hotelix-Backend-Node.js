@@ -201,10 +201,13 @@ module.exports = {
       if (Array.isArray(body.CourseDetails) && body.CourseDetails.length > 0) {
         for (const course of body.CourseDetails) {
           // Skip if Paid_Amount is null
-          if (course.Paid_Amount === null || course.Paid_Amount === 0 || course.Course_Id === null || course.VehicleModelId === null || course.Payment_Mode === null) {
+          if (course.Course_Id === null || course.VehicleModelId === null) {
             continue;
           }
-  
+          if ( course.Payment_Mode !== null &&
+            body.LeadStatus === 108 &&
+            course.Paid_Amount !== null &&
+            course.Paid_Amount > 0){
           const paymentData = {
             LeadId: insertedLeadId,
             Course_Id: course.Course_Id || null,
@@ -228,7 +231,7 @@ module.exports = {
   
           const paymentQuery = `INSERT INTO Payment_Details (${paymentKeys.join(",")}) VALUES (${Array(paymentKeys.length).fill("?").join(",")})`;
           await query(paymentQuery, paymentValues);
-  
+        }
           // Insert into Lead_Course table
           const leadCourseData = {
             LeadId: insertedLeadId,
