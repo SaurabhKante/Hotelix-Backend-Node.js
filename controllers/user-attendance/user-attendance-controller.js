@@ -113,36 +113,54 @@ module.exports = {
     }
   
     try {
-      // Get the current date in Asia/Kolkata timezone
-      // const currentDate = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
-      // console.log(currentDate);
-      // Combine current date with provided CheckIn time
-      // const checkInTimestamp = `${currentDate} ${CheckIn}`;
-  
-      // Check if there's already an attendance record for the user on the same date
-      // const checkSql = `
-      //   SELECT COUNT(*) as count FROM UserAttendance
-      //   WHERE UserId = ? AND DATE(CreatedOn) = ?
-      // `;
-      // const checkResult = await query(checkSql, [UserId, currentDate]);
-  
-      // If a record exists, return a message saying the user has already checked in
-      // if (checkResult[0].count > 0) {
-      //   return failure(res, "User has already checked in today");
-      // }
-  
-      // If no record exists, proceed to insert the new attendance record
-      const insertSql = `
-        INSERT INTO UserAttendance (UserId, CheckIn, CheckInAddress,Latitude, Longitude )
-        VALUES (?, ?, ?,?,?)
+      // Step 1: Check for any previous check-ins where checkout is missing for past days
+      const checkUnclosedAttendanceSql = `
+        SELECT * FROM UserAttendance
+        WHERE UserId = ? AND CheckOut IS NULL AND DATE(CreatedOn) < CURDATE()
       `;
-      const result = await query(insertSql, [UserId, CheckIn, CheckInAddress,Latitude, Longitude]);
+      const unclosedAttendance = await query(checkUnclosedAttendanceSql, [UserId]);
+  
+      // Step 2: Close all previous open check-ins (not from today) and calculate the duration
+      if (unclosedAttendance.length > 0) {
+        for (const record of unclosedAttendance) {
+          // Extract the date part from CreatedOn and format it as 'YYYY-MM-DD'
+          const createdOnDate = record.CreatedOn.toISOString().split('T')[0];
+          const checkOutTime = '23:59:59'; // Default checkout time for the previous day
+          const checkOutDateTime = `${createdOnDate} ${checkOutTime}`; // Full datetime for CheckOut
+  
+          // Extract check-in and check-out times to calculate the duration in seconds
+          const checkInTime = new Date(`1970-01-01T${record.CheckIn}Z`);
+          const checkOutTimee = new Date(`1970-01-01T23:59:59Z`); // Checkout at 23:59:59
+          const durationInSeconds = (checkOutTimee - checkInTime) / 1000;
+
+          const updateCheckoutSql = `
+            UPDATE UserAttendance
+            SET CheckOut = ?, 
+                CheckOutAddress = CheckInAddress, 
+                Duration = ?
+            WHERE Id = ?
+          `;
+  
+          await query(updateCheckoutSql, [checkOutDateTime, durationInSeconds, record.Id]);
+        }
+      }
+  
+      const insertSql = `
+        INSERT INTO UserAttendance (UserId, CheckIn, CheckInAddress, Latitude, Longitude)
+        VALUES (?, ?, ?, ?, ?)
+      `;
+      const result = await query(insertSql, [UserId, CheckIn, CheckInAddress, Latitude, Longitude]);
   
       return created(res, "Attendance record created", result);
     } catch (err) {
       return failure(res, "Error while processing the request", err.message);
     }
   },
+  
+  
+  
+  
+  
 
   updateUserAttendance: async (req, res) => {
     const { UserId, CheckIn, CheckOut, CheckOutAddress } = req.body;
