@@ -1116,7 +1116,7 @@ GROUP BY LeadId`;
         LeadId,
         Course_Id,
         Paid_Amount,
-        Balance_Amount,
+        Balance_Amount == null ? 0: Balance_Amount ,
         UserId,
         Payment_Mode,
         Payment_Number,
@@ -1294,7 +1294,7 @@ GROUP BY LeadId`;
         const paymentValues = [
           Course_Fees,
           Paid_Amount,
-          Balance_Amount,
+          Balance_Amount == null ? 0: Balance_Amount,
           UserId,
           Course_Id,
           Attached_file,

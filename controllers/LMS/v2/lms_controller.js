@@ -213,7 +213,7 @@ module.exports = {
             Course_Id: course.Course_Id || null,
             Course_Name: course.Course_Name || null,
             Paid_Amount: course.Paid_Amount || null,
-            Balance_Amount: course.Balance_Amount || null,
+            Balance_Amount: course.Balance_Amount || 0,
             Created_By: UserId || null,
             Comments: course.Comments || null,
             Message: course.Message || null,
