@@ -602,23 +602,23 @@ module.exports = {
             \`Lead\` AS L
         LEFT JOIN
             \`Center_Master\` AS CM ON L.Center_Id = CM.id
-        WHERE 1 = 1
+        WHERE 1 = 1 AND L.IsActive = 1
       `;
 
       if (StartDate) {
-        sqlqueryTotalLeads += ` AND UpdatedOn >= '${StartDate} 00:00:00'`;
+        sqlqueryTotalLeads += ` AND L.UpdatedOn >= '${StartDate} 00:00:00'`;
       }
       if (EndDate) {
-        sqlqueryTotalLeads += ` AND UpdatedOn <= '${EndDate} 23:59:00'`;
+        sqlqueryTotalLeads += ` AND L.UpdatedOn <= '${EndDate} 23:59:00'`;
       }
       if (LeadSourceId) {
-        sqlqueryTotalLeads += ` AND LeadSourceId = ${LeadSourceId}`;
+        sqlqueryTotalLeads += ` AND L.LeadSourceId = ${LeadSourceId}`;
       }
       if (CenterName) {
         sqlqueryTotalLeads += ` AND CM.center_name = '${CenterName}'`;
       }
       if (CreatedBy) {
-        sqlqueryTotalLeads += ` AND CreatedBy = ${CreatedBy}`;
+        sqlqueryTotalLeads += ` AND L.CreatedBy = ${CreatedBy}`;
       }
 
       let sqlqueryWalkInAndWon = `
@@ -728,7 +728,7 @@ module.exports = {
             COUNT(CASE WHEN LeadStatus = 16 THEN 1 END) AS reinquired
         FROM
             \`Lead\`
-        WHERE 1 = 1
+        WHERE 1 = 1 AND IsActive =1
     `;
 
       let sqlqueryUserLeads = `
@@ -779,7 +779,7 @@ module.exports = {
         params.push(CreatedBy);
       }
 
-      sqlqueryUserLeads += `
+      sqlqueryUserLeads += ` AND l.IsActive = 1
           GROUP BY
               u.UserName
       `;
@@ -1688,6 +1688,7 @@ DropDownList: async (req, res) => {
               WHERE 
                   L.LeadStatus IN (108, 109)
                   AND L.UpdatedOn BETWEEN ? AND ?
+                  AND L.IsActive = 1
           `;
   
           // Parameters for the query
