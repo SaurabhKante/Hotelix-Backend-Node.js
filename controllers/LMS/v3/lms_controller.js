@@ -1361,34 +1361,53 @@ GROUP BY LeadId`;
   
 
 
-updateLead : async (req, res) => {
-  const { UserId, LeadId, LeadStatus, FollowUpTime } = req.body;
-
-  if (!UserId || !LeadId || !LeadStatus) {
-    return res.status(400).json(failure('Missing required fields'));
-  }
-
-  try {
-    // Update the lead record
-    const queryStr = `
-      UPDATE \`Lead\`
-      SET UpdatedBy = ?, LeadStatus = ?, NextFollowUp = ?
-      WHERE LeadId = ?`;
-    
-    const result = await query(queryStr, [UserId, LeadStatus, FollowUpTime, LeadId]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json(failure('Lead not found'));
+  updateLead: async (req, res) => {
+    const {LeadId, LeadStatus, FollowUpTime, Comments } = req.body;
+    let UserId = req.headers.USERID
+  
+    if (!UserId || !LeadId || !LeadStatus) {
+      return res.status(400).json(failure('Missing required fields'));
     }
-
-    // Return the LeadId in success response
-    return success(res, "Lead Updated", result);
-    
-  } catch (error) {
-    console.error('Error updating lead:', error);
-    return failure(res, "Error while fetching the data", err.message);
-  }
-},
+  
+    try {
+      // Step 1: Update the lead record in the Lead table
+      const updateLeadQuery = `
+        UPDATE \`Lead\`
+        SET UpdatedBy = ?, LeadStatus = ?, NextFollowUp = ?
+        WHERE LeadId = ?`;
+      
+      const updateResult = await query(updateLeadQuery, [UserId, LeadStatus, FollowUpTime, LeadId]);
+  
+      if (updateResult.affectedRows === 0) {
+        return res.status(404).json(failure('Lead not found'));
+      }
+  
+      // Step 2: Insert a new entry in the Reminder table
+      const insertReminderQuery = `
+        INSERT INTO Reminder (LeadId, LeadStatus, FollowUpDate, CreatedBy, SubstatusId, Comments)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `;
+  
+      const insertReminderParams = [
+        LeadId,                
+        LeadStatus,          
+        FollowUpTime,         
+        UserId,               
+        LeadStatus,            
+        Comments || null       
+      ];
+  
+      await query(insertReminderQuery, insertReminderParams);
+  
+      // Step 3: Return success response with updated lead data
+      return success(res, "Lead and Reminder updated successfully", { LeadId, LeadStatus, FollowUpTime });
+      
+    } catch (error) {
+      console.error('Error updating lead:', error);
+      return res.status(500).json(failure("Error while processing the request", error.message));
+    }
+  },
+  
 
 DropDownList: async (req, res) => {
   try {
